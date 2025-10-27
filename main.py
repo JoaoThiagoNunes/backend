@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from database import engine, get_db
-from models import Base, Upload, Escola, CalculosProfin, ConfiguracaoSistema
+from models import Base, Upload, Escola, CalculosProfin
 
 # Criar todas as tabelas
 Base.metadata.create_all(bind=engine)
@@ -25,12 +25,6 @@ app.add_middleware(
 )
 
 # ==========================================
-# CONFIGURAÇÕES
-# ==========================================
-MODO_GERENCIAMENTO = "substituir"  # "substituir" | "historico" | "limite"
-LIMITE_UPLOADS = 5
-
-# ==========================================
 # ARMAZENAMENTO EM MEMÓRIA
 # ==========================================
 dados_armazenados = {
@@ -40,77 +34,22 @@ dados_armazenados = {
     "upload_id": None
 }
 
-# ==========================================
-# FUNÇÕES AUXILIARES (mantidas)
-# ==========================================
-def obter_quantidade(row: pd.Series, coluna: str) -> int:
-    valor = row.get(coluna, 0)
-    try:
-        return int(valor) if pd.notna(valor) else 0
-    except (ValueError, TypeError):
-        return 0
-
-def obter_texto(row: pd.Series, coluna: str, default: str = "") -> str:
-    valor = row.get(coluna, default)
-    try:
-        return str(valor) if pd.notna(valor) else default
-    except (ValueError, TypeError):
-        return default
-
-def validar_indigena_e_quilombola(row: pd.Series, coluna: str) -> str:
-    valor = row.get(coluna, "NÃO")
-    try:
-        return str(valor) if pd.notna(valor) else "NÃO"
-    except (ValueError, TypeError):
-        return "NÃO"
-
-# ==========================================
-# FUNÇÕES DE GERENCIAMENTO DE DADOS (corrigidas)
-# ==========================================
-def limpar_uploads_antigos(db: Session, modo: str = MODO_GERENCIAMENTO):
-    """Gerencia uploads antigos conforme o modo configurado.
-       Importante: usar db.delete(obj) para ativar cascade ORM e evitar FK violations.
-    """
-    if modo == "substituir":
-        uploads = db.query(Upload).all()
-        count = 0
-        for up in uploads:
-            db.delete(up)  # ativa cascade: deleta escolas e calculos via ORM
-            count += 1
-        db.commit()
-        print(f"🗑️ Modo SUBSTITUIR: {count} uploads antigos removidos")
-        
-    elif modo == "historico":
-        # Desativa todos os uploads (marca is_active = False)
-        db.query(Upload).update({"is_active": False})
-        db.commit()
-        print("📚 Modo HISTÓRICO: uploads anteriores desativados")
-        
-    elif modo == "limite":
-        # Mantém apenas os últimos N uploads
-        uploads_antigos = (
-            db.query(Upload)
-            .order_by(Upload.upload_date.desc())
-            .offset(LIMITE_UPLOADS)
-            .all()
-        )
-        count = 0
-        for upload in uploads_antigos:
-            db.delete(upload)  # delete via ORM -> cascade
-            count += 1
-        db.commit()
-        print(f"📊 Modo LIMITE: removidos {count} uploads antigos, mantidos últimos {LIMITE_UPLOADS}")
-
-def obter_upload_ativo(db: Session) -> Optional[Upload]:
-    """Retorna o upload ativo (ou mais recente se modo histórico)"""
-    if MODO_GERENCIAMENTO == "historico":
-        return db.query(Upload).filter(Upload.is_active == True).first()
-    else:
-        return db.query(Upload).order_by(Upload.upload_date.desc()).first()
 
 # ==========================================
 # FUNÇÕES AUXILIARES
 # ==========================================
+def limpar_uploads_antigos(db: Session):
+    """Gerencia uploads antigos conforme o modo configurado.
+       Importante: usar db.delete(obj) para ativar cascade ORM e evitar FK violations.
+    """
+    uploads = db.query(Upload).all()
+    count = 0
+    for up in uploads:
+        db.delete(up)  # ativa cascade: deleta escolas e calculos via ORM
+        count += 1
+    db.commit()
+    print(f"🗑️{count} uploads antigos removidos")
+
 
 def obter_quantidade(row: pd.Series, coluna: str) -> int:
     valor = row.get(coluna, 0)
@@ -133,44 +72,6 @@ def validar_indigena_e_quilombola(row: pd.Series, coluna: str) -> str:
     except (ValueError, TypeError):
         return "NÃO"
 
-# ==========================================
-# FUNÇÕES DE GERENCIAMENTO DE DADOS
-# ==========================================
-
-def limpar_uploads_antigos(db: Session, modo: str = MODO_GERENCIAMENTO):
-    """Gerencia uploads antigos conforme o modo configurado"""
-    
-    if modo == "substituir":
-        # Apaga TODOS os uploads antigos
-        count = db.query(Upload).delete()
-        db.commit()
-        print(f"🗑️ Modo SUBSTITUIR: {count} uploads antigos removidos")
-        
-    elif modo == "historico":
-        # Desativa todos os uploads (marca is_active = False)
-        db.query(Upload).update({"is_active": False})
-        db.commit()
-        print("📚 Modo HISTÓRICO: uploads anteriores desativados")
-        
-    elif modo == "limite":
-        # Mantém apenas os últimos N uploads
-        uploads_antigos = (
-            db.query(Upload)
-            .order_by(Upload.upload_date.desc())
-            .offset(LIMITE_UPLOADS)
-            .all()
-        )
-        for upload in uploads_antigos:
-            db.delete(upload)
-        db.commit()
-        print(f"📊 Modo LIMITE: mantidos últimos {LIMITE_UPLOADS} uploads")
-
-def obter_upload_ativo(db: Session) -> Optional[Upload]:
-    """Retorna o upload ativo (ou mais recente se modo histórico)"""
-    if MODO_GERENCIAMENTO == "historico":
-        return db.query(Upload).filter(Upload.is_active == True).first()
-    else:
-        return db.query(Upload).order_by(Upload.upload_date.desc()).first()
 
 # ==========================================
 # CÁLCULOS DAS COTAS
@@ -312,7 +213,8 @@ def calcular_todas_cotas(row: pd.Series) -> Dict[str, Any]:
     ]), 2)
     
     return cotas
-# MODELOS DE DADOS (ResponseCalculos mantido)
+
+# MODELOS DE DADOS
 class ResponseCalculos(BaseModel):
     success: bool
     message: str
@@ -328,15 +230,13 @@ class ResponseCalculos(BaseModel):
 def read_root():
     return {
         "message": "API PROFIN funcionando!",
-        "modo_gerenciamento": MODO_GERENCIAMENTO,
-        "limite_uploads": LIMITE_UPLOADS if MODO_GERENCIAMENTO == "limite" else None
     }
 
 @app.post("/upload-excel")
 async def upload_excel(
     file: UploadFile = File(...), 
     db: Session = Depends(get_db),
-    limpar_antigos: bool = Query(True, description="Limpar uploads antigos conforme modo configurado")
+    limpar_antigos: bool = Query(True)
 ) -> Dict[str, Any]:
     if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
         raise HTTPException(status_code=400, detail="Arquivo deve ser Excel (.xlsx ou .xls ou .csv)")
@@ -347,7 +247,7 @@ async def upload_excel(
         
         # LIMPAR DADOS ANTIGOS (conforme modo configurado)
         if limpar_antigos:
-            limpar_uploads_antigos(db, MODO_GERENCIAMENTO)
+            limpar_uploads_antigos(db)
         
         # Criar registro de upload
         upload = Upload(
@@ -376,12 +276,10 @@ async def upload_excel(
             "columns": len(df.columns),
             "column_names": df.columns.tolist(),
             "data": data,
-            "modo_gerenciamento": MODO_GERENCIAMENTO
         }
         
         return {
             "success": True,
-            "message": f"Arquivo processado! Modo: {MODO_GERENCIAMENTO}",
             "info": info
         }
         
@@ -533,14 +431,7 @@ async def calcular_valores(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Erro ao calcular valores: {str(e)}")
 
 @app.get("/uploads")
-def listar_uploads(
-    db: Session = Depends(get_db),
-    apenas_ativo: bool = Query(False, description="Retornar apenas upload ativo")
-):
-    if apenas_ativo:
-        upload = obter_upload_ativo(db)
-        return {"uploads": [upload] if upload else []}
-    
+def listar_uploads(db: Session = Depends(get_db)):   
     uploads = db.query(Upload).order_by(Upload.upload_date.desc()).all()
     return {"uploads": uploads}
 
@@ -582,23 +473,10 @@ def limpar_todos_dados(db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao limpar dados: {str(e)}")
 
-@app.get("/configuracao")
-def obter_configuracao():
-    return {
-        "modo_gerenciamento": MODO_GERENCIAMENTO,
-        "limite_uploads": LIMITE_UPLOADS if MODO_GERENCIAMENTO == "limite" else None,
-        "descricao": {
-            "substituir": "Apaga todos os uploads antigos a cada novo upload",
-            "historico": "Mantém histórico completo, marca uploads como ativos/inativos",
-            "limite": f"Mantém apenas os últimos {LIMITE_UPLOADS} uploads"
-        }[MODO_GERENCIAMENTO]
-    }
-
 @app.get("/status-dados")
 def status_dados(db: Session = Depends(get_db)):
     total_uploads = db.query(Upload).count()
     total_escolas = db.query(Escola).count()
-    upload_ativo = obter_upload_ativo(db)
     
     return {
         "dados_disponiveis": dados_armazenados["df"] is not None,
@@ -611,15 +489,11 @@ def status_dados(db: Session = Depends(get_db)):
             "total_uploads": total_uploads,
             "total_escolas": total_escolas,
             "upload_ativo": {
-                "id": upload_ativo.id,
-                "filename": upload_ativo.filename,
-                "total_escolas": upload_ativo.total_escolas
-            } if upload_ativo else None
+                "id": id,
+                "filename": id.filename,
+                "total_escolas": total_escolas,
+            } 
         },
-        "configuracao": {
-            "modo": MODO_GERENCIAMENTO,
-            "limite": LIMITE_UPLOADS if MODO_GERENCIAMENTO == "limite" else None
-        }
     }
 
 @app.get("/health")

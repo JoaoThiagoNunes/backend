@@ -40,7 +40,7 @@ class Escola(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # Chave estrangeira para Upload
-    upload_id = Column(Integer, ForeignKey("uploads.id"), nullable=False)
+    upload_id = Column(Integer, ForeignKey("uploads.id", ondelete="CASCADE"), nullable=False)
     
     # Dados básicos da escola
     nome_uex = Column(String(255), nullable=False, index=True)
@@ -115,18 +115,3 @@ class CalculosProfin(Base):
     def __repr__(self):
         return f"<CalculosProfin(escola_id={self.escola_id}, total=R$ {self.valor_total:,.2f})>"
 
-
-class ConfiguracaoSistema(Base):
-    """
-    Tabela para configurações globais do sistema
-    """
-    __tablename__ = "configuracao_sistema"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    chave = Column(String(100), unique=True, nullable=False)
-    valor = Column(String(500), nullable=True)
-    descricao = Column(String(500), nullable=True)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
-    def __repr__(self):
-        return f"<Config(chave='{self.chave}', valor='{self.valor}')>"
