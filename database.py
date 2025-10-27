@@ -11,7 +11,7 @@ load_dotenv()
 # Formato: postgresql://usuario:senha@host:porta/nome_do_banco
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/profin_db"
+    "postgresql://postgres:postgres@localhost:5433/profin_db"
 )
 
 # Criar engine do SQLAlchemy
