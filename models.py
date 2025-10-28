@@ -1,30 +1,63 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, UniqueConstraint, Enum
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
+import enum
+
+
+class StatusAnoLetivo(str, enum.Enum):
+    """Status do ano letivo"""
+    ATIVO = "ATIVO"
+    ARQUIVADO = "ARQUIVADO"
+
+
+class AnoLetivo(Base):
+    """
+    Tabela que armazena os anos letivos.
+    Apenas um ano pode estar ATIVO por vez.
+    Anos ARQUIVADOS são mantidos por 5 anos para consulta.
+    """
+    __tablename__ = "anos_letivos"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    ano = Column(Integer, unique=True, nullable=False, index=True)
+    status = Column(Enum(StatusAnoLetivo), default=StatusAnoLetivo.ATIVO, nullable=False, index=True)
+    
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    arquivado_em = Column(DateTime, nullable=True)
+    
+    # Relacionamento: Um ano letivo tem vários uploads
+    uploads = relationship("Upload", back_populates="ano_letivo", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<AnoLetivo(id={self.id}, ano={self.ano}, status='{self.status.value}')>"
 
 
 class Upload(Base):
     """
     Tabela que armazena informações sobre cada upload de arquivo Excel.
-    Cada upload pode ter várias escolas associadas.
+    Cada upload está vinculado a um ano letivo e pode ter várias escolas associadas.
     """
     __tablename__ = "uploads"
     
     id = Column(Integer, primary_key=True, index=True)
+    
+    # Chave estrangeira para AnoLetivo
+    ano_letivo_id = Column(Integer, ForeignKey("anos_letivos.id", ondelete="CASCADE"), nullable=False, index=True)
+    
     filename = Column(String(255), nullable=False)
     upload_date = Column(DateTime, default=datetime.now, nullable=False)
     total_escolas = Column(Integer, default=0)
     
-    # Flag para indicar se é o upload ativo
+    # Flag para indicar se é o upload ativo (último upload do ano)
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     
-    # Relacionamento: Um upload tem várias escolas
-    # cascade garante que ao deletar o objeto Upload via ORM os filhos sejam removidos
+    # Relacionamentos
+    ano_letivo = relationship("AnoLetivo", back_populates="uploads")
     escolas = relationship("Escola", back_populates="upload", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<Upload(id={self.id}, filename='{self.filename}', escolas={self.total_escolas}, active={self.is_active})>"
+        return f"<Upload(id={self.id}, ano={self.ano_letivo_id}, filename='{self.filename}', escolas={self.total_escolas})>"
 
 
 class Escola(Base):
@@ -34,7 +67,7 @@ class Escola(Base):
     """
     __tablename__ = "escolas"
     __table_args__ = (
-        UniqueConstraint('nome_uex', 'dre', name='uq_escola_nome_dre'),
+        UniqueConstraint('upload_id', 'nome_uex', 'dre', name='uq_escola_upload_nome_dre'),
     )
     
     id = Column(Integer, primary_key=True, index=True)
@@ -90,7 +123,7 @@ class CalculosProfin(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # Chave estrangeira para Escola (único - uma escola tem apenas um cálculo)
-    escola_id = Column(Integer, ForeignKey("escolas.id"), nullable=False, unique=True)
+    escola_id = Column(Integer, ForeignKey("escolas.id", ondelete="CASCADE"), nullable=False, unique=True)
     
     # Valores calculados para cada cota PROFIN
     profin_custeio = Column(Float, default=0.0)
@@ -114,4 +147,3 @@ class CalculosProfin(Base):
     
     def __repr__(self):
         return f"<CalculosProfin(escola_id={self.escola_id}, total=R$ {self.valor_total:,.2f})>"
-
