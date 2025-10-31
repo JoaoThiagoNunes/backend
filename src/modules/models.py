@@ -6,7 +6,6 @@ import enum
 
 
 class StatusAnoLetivo(str, enum.Enum):
-    """Status do ano letivo"""
     ATIVO = "ATIVO"
     ARQUIVADO = "ARQUIVADO"
 
@@ -97,8 +96,6 @@ class Escola(Base):
     sala_recurso = Column(Integer, default=0)
     climatizacao = Column(Integer, default=0)
     preuni = Column(Integer, default=0)
-    
-    # Identificadores especiais
     indigena_quilombola = Column(String(10), default="NÃO")
     
     # Data de criação

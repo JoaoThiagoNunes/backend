@@ -10,7 +10,7 @@ class AnoLetivoCreate(AnoLetivoBase):
 class AnoLetivoRead(AnoLetivoBase):
     id: int
     status: Optional[str] = None
-    arquivado_em: Optional[str] = None  # ISO datetime ou use datetime e orm_mode
+    arquivado_em: Optional[str] = None  
 
     class Config:
         orm_mode = True

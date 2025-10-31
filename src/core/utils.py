@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 from src.modules.models import Upload  
 from typing import Dict, Any
 
-# =================
+# ==================
 # BUSCAS E LIMPEZA
-# =================
+# ==================
 def limpar_uploads_antigos(db: Session, ano_letivo_id: int):
     """
     Remove uploads anteriores DO MESMO ANO LETIVO.

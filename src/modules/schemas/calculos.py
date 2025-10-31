@@ -17,7 +17,6 @@ class EscolaCalculo(BaseModel):
     id: int
     dre: Optional[str] = None
     nome_uex: str
-    # incorpora todos os campos do cálculo
     profin_custeio: float
     profin_projeto: float
     profin_kit_escolar: float
@@ -36,7 +35,7 @@ class ResponseCalculos(BaseModel):
     valor_total_geral: float
     escolas: List[EscolaCalculo]
     upload_id: int
-    ano_letivo_id: Optional[int] = None  # pode ser opcional se nem sempre enviado
+    ano_letivo_id: Optional[int] = None 
 
     class Config:
         orm_mode = True

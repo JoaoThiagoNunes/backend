@@ -7,7 +7,7 @@ class EscolaBase(BaseModel):
 
 class EscolaCreate(EscolaBase):
     total_alunos: Optional[int] = 0
-    # adicione outros campos opcionais conforme seu model
+   
 
 class EscolaRead(EscolaBase):
     id: int

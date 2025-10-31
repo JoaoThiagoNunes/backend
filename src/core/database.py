@@ -1,34 +1,31 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 import os
-from dotenv import load_dotenv
+from urllib.parse import quote_plus
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Carregar variáveis de ambiente
-load_dotenv()
 
-# URL de conexão com o PostgreSQL
-# Formato: postgresql://usuario:senha@host:porta/nome_do_banco
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/profin_db"
-)
+DB_USER = os.environ.get("DB_USER", "postgres")
+DB_PASS = os.environ.get("DB_PASS", "123456")
+DB_HOST = os.environ.get("DB_HOST", "localhost")
+DB_PORT = os.environ.get("DB_PORT", "5432")
+DB_NAME = os.environ.get("DB_NAME", "profin_db")
 
-# Criar engine do SQLAlchemy
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,  # Verifica conexões antes de usar
-    pool_size=10,  # Tamanho do pool de conexões
-    max_overflow=20  # Conexões extras permitidas
-)
+# Escape de usuário/senha para evitar problemas com caracteres especiais
+escaped_user = quote_plus(DB_USER)
+escaped_pass = quote_plus(DB_PASS)
 
-# Criar SessionLocal
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+DATABASE_URL = f"postgresql+psycopg2://{escaped_user}:{escaped_pass}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-# Base para os modelos
+# Print de debug 
+masked = DATABASE_URL.replace(f":{escaped_pass}@", ":****@")
+print("DATABASE_URL (masked):", masked)
+
+# Engine / Session / Base
+engine = create_engine(DATABASE_URL, future=True)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 Base = declarative_base()
 
-# Dependency para obter sessão do banco
+
 def get_db():
     db = SessionLocal()
     try:
