@@ -1,14 +1,9 @@
-import os
 from urllib.parse import quote_plus
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-
-
-DB_USER = os.environ.get("DB_USER", "postgres")
-DB_PASS = os.environ.get("DB_PASS", "123456")
-DB_HOST = os.environ.get("DB_HOST", "localhost")
-DB_PORT = os.environ.get("DB_PORT", "5432")
-DB_NAME = os.environ.get("DB_NAME", "profin_db")
+from typing import Generator
+from src.core.logging_config import logger
+from src.core.config import DB_USER, DB_PASS, DB_HOST, DB_PORT, DB_NAME
 
 # Escape de usuário/senha para evitar problemas com caracteres especiais
 escaped_user = quote_plus(DB_USER)
@@ -16,9 +11,9 @@ escaped_pass = quote_plus(DB_PASS)
 
 DATABASE_URL = f"postgresql+psycopg2://{escaped_user}:{escaped_pass}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-# Print de debug 
+# Log de conexão (mascarado por segurança)
 masked = DATABASE_URL.replace(f":{escaped_pass}@", ":****@")
-print("DATABASE_URL (masked):", masked)
+logger.info(f"Conectando ao banco: {masked}")
 
 # Engine / Session / Base
 engine = create_engine(DATABASE_URL, future=True)
@@ -26,7 +21,18 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 Base = declarative_base()
 
 
-def get_db():
+def get_db() -> Generator:
+    """
+    Dependência do FastAPI para obter sessão do banco de dados.
+    
+    Yields:
+        Session: Sessão do SQLAlchemy
+        
+    Exemplo:
+        @router.get("/endpoint")
+        def meu_endpoint(db: Session = Depends(get_db)):
+            ...
+    """
     db = SessionLocal()
     try:
         yield db

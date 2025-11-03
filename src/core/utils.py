@@ -1,7 +1,9 @@
 import pandas as pd
 from sqlalchemy.orm import Session
-from src.modules.models import Upload  
-from typing import Dict, Any
+from src.modules.models import Upload, AnoLetivo, StatusAnoLetivo
+from src.core.logging_config import logger
+from fastapi import HTTPException
+from typing import Dict, Any, Optional, Tuple, Union
 
 # ==================
 # BUSCAS E LIMPEZA
@@ -16,9 +18,68 @@ def limpar_uploads_antigos(db: Session, ano_letivo_id: int):
     for up in uploads:
         db.delete(up)  # Cascade deleta escolas e cálculos
         count += 1
-    db.commit()
     if count > 0:
-        print(f"🗑️ {count} upload(s) anterior(es) do ano letivo removido(s)")
+        db.commit()
+        logger.info(f"🗑️ {count} upload(s) anterior(es) do ano letivo removido(s)")
+    else:
+        db.rollback()  # Se não há nada para deletar, não precisa de commit
+
+def obter_ano_letivo(
+    db: Session,
+    ano_letivo_id: Optional[int] = None,
+    raise_if_not_found: bool = True
+) -> Union[Tuple[AnoLetivo, int], Tuple[None, None]]:
+    """
+    Determina e retorna o ano letivo baseado no ID fornecido ou no ano ativo.
+    
+    Esta função centraliza a lógica duplicada de determinar ano letivo
+    que estava espalhada em várias rotas.
+    
+    Args:
+        db: Sessão do banco de dados
+        ano_letivo_id: ID do ano letivo (opcional). Se None, busca o ano ativo.
+        raise_if_not_found: Se True, lança exceção se não encontrar. Se False, retorna None.
+    
+    Returns:
+        Tupla (AnoLetivo, ano_letivo_id)
+    
+    Raises:
+        HTTPException: Se ano_letivo_id não for encontrado ou não houver ano ativo.
+    
+    Exemplo:
+        ano_letivo, ano_id = obter_ano_letivo(db, ano_letivo_id=2024)
+        ano_letivo, ano_id = obter_ano_letivo(db)  # Usa ano ativo
+    """
+    if ano_letivo_id is None:
+        # Buscar ano letivo ativo
+        ano_letivo = db.query(AnoLetivo).filter(
+            AnoLetivo.status == StatusAnoLetivo.ATIVO
+        ).first()
+        
+        if not ano_letivo:
+            if raise_if_not_found:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Nenhum ano letivo ativo encontrado. Crie um ano primeiro."
+                )
+            return None, None
+        
+        ano_letivo_id = ano_letivo.id
+    else:
+        # Buscar ano letivo por ID
+        ano_letivo = db.query(AnoLetivo).filter(
+            AnoLetivo.id == ano_letivo_id
+        ).first()
+        
+        if not ano_letivo:
+            if raise_if_not_found:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Ano letivo ID {ano_letivo_id} não encontrado"
+                )
+            return None, None
+    
+    return ano_letivo, ano_letivo_id
 
 def obter_quantidade(row: pd.Series, coluna: str) -> int:
     valor = row.get(coluna, 0)
@@ -83,16 +144,24 @@ def calcular_profin_projeto(row: pd.Series) -> float:
     esp_medio_integral = obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL")
     quantidade_aluno = obter_quantidade(row, "TOTAL")
 
-    if (quantidade_aluno <= 500):
-        if (fund_integral or medio_integral or esp_fund_integral or esp_medio_integral > 0):
+    # Verificar se tem ensino integral (corrigido: cada variável deve ser verificada separadamente)
+    tem_integral = (
+        fund_integral > 0 or 
+        medio_integral > 0 or 
+        esp_fund_integral > 0 or 
+        esp_medio_integral > 0
+    )
+    
+    if quantidade_aluno <= 500:
+        if tem_integral:
             return round((5000 * 2), 2)
         return round(5000, 2)
-    elif (quantidade_aluno > 500 and quantidade_aluno <= 1000):
-        if (fund_integral or medio_integral or esp_fund_integral or esp_medio_integral > 0):
+    elif quantidade_aluno > 500 and quantidade_aluno <= 1000:
+        if tem_integral:
             return round((10000 * 2), 2)
         return round(10000, 2)
     else:
-        if (fund_integral or medio_integral or esp_fund_integral or esp_medio_integral > 0):
+        if tem_integral:
             return round((15000 * 2), 2)
         return round(15000, 2)
 

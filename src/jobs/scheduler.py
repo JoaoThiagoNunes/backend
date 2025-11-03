@@ -7,6 +7,7 @@ import traceback
 import logging
 
 from src.core.database import SessionLocal
+from src.core.config import SCHEDULER_TIMEZONE
 from src.modules.models import AnoLetivo, StatusAnoLetivo
 
 logger = logging.getLogger("profin.scheduler")
@@ -17,7 +18,7 @@ def arquivar_anos_automaticamente():
     """Executa diariamente à meia-noite: arquiva anos letivos cujo dia seja 31/12 (ou conforme regra)."""
     db = SessionLocal()
     try:
-        hoje = datetime.now(tz=ZoneInfo("America/Maceio"))
+        hoje = datetime.now(tz=ZoneInfo(SCHEDULER_TIMEZONE))
         logger.info("Executando arquivar_anos_automaticamente em %s", hoje.isoformat())
 
         # Se for 31 de dezembro, arquiva o ano atual
@@ -49,7 +50,7 @@ def limpar_anos_antigos():
     """Executa diariamente: remove anos arquivados há mais de 5 anos."""
     db = SessionLocal()
     try:
-        agora = datetime.now(tz=ZoneInfo("America/Maceio"))
+        agora = datetime.now(tz=ZoneInfo(SCHEDULER_TIMEZONE))
         limite_data = agora - timedelta(days=5 * 365)
         logger.info("Executando limpar_anos_antigos (limite=%s)", limite_data.date())
 
@@ -88,11 +89,11 @@ def start_scheduler():
         return
 
     # instância do scheduler em background
-    scheduler = BackgroundScheduler(timezone=ZoneInfo("America/Maceio"))
+    scheduler = BackgroundScheduler(timezone=ZoneInfo(SCHEDULER_TIMEZONE))
 
     # Cron: todos os dias à meia-noite e meia (00:00 e 00:30)
-    scheduler.add_job(arquivar_anos_automaticamente, CronTrigger(hour=0, minute=0, timezone=ZoneInfo("America/Maceio")))
-    scheduler.add_job(limpar_anos_antigos, CronTrigger(hour=0, minute=30, timezone=ZoneInfo("America/Maceio")))
+    scheduler.add_job(arquivar_anos_automaticamente, CronTrigger(hour=0, minute=0, timezone=ZoneInfo(SCHEDULER_TIMEZONE)))
+    scheduler.add_job(limpar_anos_antigos, CronTrigger(hour=0, minute=30, timezone=ZoneInfo(SCHEDULER_TIMEZONE)))
 
     scheduler.start()
     logger.info("Scheduler iniciado com jobs: %s", scheduler.get_jobs())

@@ -2,7 +2,7 @@
 Script para inicializar o banco de dados
 Cria todas as tabelas necessárias
 """
-from database import engine, Base
+from src.core.database import engine, Base
 from src.modules.models import Upload, Escola, CalculosProfin
 
 def init_database():

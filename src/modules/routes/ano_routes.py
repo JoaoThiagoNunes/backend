@@ -1,51 +1,55 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from src.core.database import get_db
-from src.modules.schemas.ano import *
+from src.modules.schemas.ano import (
+    AnoLetivoCreate, AnoLetivoRead, AnoLetivoListResponse,
+    AnoLetivoDetailResponse, AnoLetivoCreateResponse,
+    AnoLetivoArquivarResponse, AnoLetivoDeleteResponse
+)
 from src.modules.models import  AnoLetivo, StatusAnoLetivo
 from datetime import datetime
 
 router = APIRouter()
 
-@router.get("/get-anos-letivos", tags=["Anos"])
-def listar_anos_letivos(db: Session = Depends(get_db)):
+@router.get("", response_model=AnoLetivoListResponse, tags=["Anos"])
+def listar_anos_letivos(db: Session = Depends(get_db)) -> AnoLetivoListResponse:
     """Lista todos os anos letivos (ativos e arquivados)"""
     anos = db.query(AnoLetivo).order_by(AnoLetivo.ano.desc()).all()
-    return {
-        "success": True,
-        "anos": [
-            {
-                "id": ano.id,
-                "ano": ano.ano,
-                "status": ano.status.value,
-                "created_at": ano.created_at,
-                "arquivado_em": ano.arquivado_em,
-                "total_uploads": len(ano.uploads)
-            }
+    return AnoLetivoListResponse(
+        success=True,
+        anos=[
+            AnoLetivoRead(
+                id=ano.id,
+                ano=ano.ano,
+                status=ano.status.value,
+                created_at=ano.created_at,
+                arquivado_em=ano.arquivado_em,
+                total_uploads=len(ano.uploads)
+            )
             for ano in anos
         ]
-    }
+    )
 
-@router.get("/anos-letivos/ativo", tags=["Anos"])
-def obter_ano_ativo(db: Session = Depends(get_db)):
+@router.get("/ativo", response_model=AnoLetivoDetailResponse, tags=["Anos"])
+def obter_ano_ativo(db: Session = Depends(get_db)) -> AnoLetivoDetailResponse:
     """Retorna o ano letivo ativo atual"""
     ano = db.query(AnoLetivo).filter(AnoLetivo.status == StatusAnoLetivo.ATIVO).first()
     if not ano:
         raise HTTPException(status_code=404, detail="Nenhum ano letivo ativo encontrado")
     
-    return {
-        "success": True,
-        "ano": {
-            "id": ano.id,
-            "ano": ano.ano,
-            "status": ano.status.value,
-            "created_at": ano.created_at,
-            "total_uploads": len(ano.uploads)
-        }
-    }
+    return AnoLetivoDetailResponse(
+        success=True,
+        ano=AnoLetivoRead(
+            id=ano.id,
+            ano=ano.ano,
+            status=ano.status.value,
+            created_at=ano.created_at,
+            total_uploads=len(ano.uploads)
+        )
+    )
 
-@router.post("/anos-letivos", tags=["Anos"])
-def criar_ano_letivo(data: AnoLetivoCreate, db: Session = Depends(get_db)):
+@router.post("", response_model=AnoLetivoCreateResponse, tags=["Anos"])
+def criar_ano_letivo(data: AnoLetivoCreate, db: Session = Depends(get_db)) -> AnoLetivoCreateResponse:
     """
     Cria um novo ano letivo.
     Apenas um ano pode estar ATIVO por vez.
@@ -71,19 +75,19 @@ def criar_ano_letivo(data: AnoLetivoCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(novo_ano)
     
-    return {
-        "success": True,
-        "message": f"Ano letivo {data.ano} criado com sucesso",
-        "ano": {
-            "id": novo_ano.id,
-            "ano": novo_ano.ano,
-            "status": novo_ano.status.value,
-            "created_at": novo_ano.created_at
-        }
-    }
+    return AnoLetivoCreateResponse(
+        success=True,
+        message=f"Ano letivo {data.ano} criado com sucesso",
+        ano=AnoLetivoRead(
+            id=novo_ano.id,
+            ano=novo_ano.ano,
+            status=novo_ano.status.value,
+            created_at=novo_ano.created_at
+        )
+    )
 
-@router.put("/anos-letivos/{ano_id}/arquivar", tags=["Anos"])
-def arquivar_ano_letivo(ano_id: int, db: Session = Depends(get_db)):
+@router.put("/{ano_id}/arquivar", response_model=AnoLetivoArquivarResponse, tags=["Anos"])
+def arquivar_ano_letivo(ano_id: int, db: Session = Depends(get_db)) -> AnoLetivoArquivarResponse:
     """Arquiva um ano letivo manualmente (requer admin)"""
     ano = db.query(AnoLetivo).filter(AnoLetivo.id == ano_id).first()
     if not ano:
@@ -96,19 +100,19 @@ def arquivar_ano_letivo(ano_id: int, db: Session = Depends(get_db)):
     ano.arquivado_em = datetime.now()
     db.commit()
     
-    return {
-        "success": True,
-        "message": f"Ano letivo {ano.ano} arquivado com sucesso",
-        "ano": {
-            "id": ano.id,
-            "ano": ano.ano,
-            "status": ano.status.value,
-            "arquivado_em": ano.arquivado_em
-        }
-    }
+    return AnoLetivoArquivarResponse(
+        success=True,
+        message=f"Ano letivo {ano.ano} arquivado com sucesso",
+        ano=AnoLetivoRead(
+            id=ano.id,
+            ano=ano.ano,
+            status=ano.status.value,
+            arquivado_em=ano.arquivado_em
+        )
+    )
 
-@router.delete("/anos-letivos/{ano_id}", tags=["Anos"])
-def deletar_ano_letivo(ano_id: int, db: Session = Depends(get_db)):
+@router.delete("/{ano_id}", response_model=AnoLetivoDeleteResponse, tags=["Anos"])
+def deletar_ano_letivo(ano_id: int, db: Session = Depends(get_db)) -> AnoLetivoDeleteResponse:
     """
     Deleta um ano letivo (apenas admin).
     Nota: Anos são deletados automaticamente após 5 anos de arquivamento.
@@ -121,7 +125,7 @@ def deletar_ano_letivo(ano_id: int, db: Session = Depends(get_db)):
     db.delete(ano)  # Cascade deleta tudo relacionado
     db.commit()
     
-    return {
-        "success": True,
-        "message": f"Ano letivo {ano_numero} e todos os dados relacionados foram deletados"
-    }
+    return AnoLetivoDeleteResponse(
+        success=True,
+        message=f"Ano letivo {ano_numero} e todos os dados relacionados foram deletados"
+    )

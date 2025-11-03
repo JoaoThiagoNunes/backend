@@ -1,16 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, HTTPException, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session, joinedload
 from src.core.database import get_db
+from src.core.logging_config import logger
 from src.modules.schemas.calculos import *
 from src.modules.models import  *
 from datetime import datetime
 from typing import Optional
 import pandas as pd
-from src.core.utils import calcular_todas_cotas
+from src.core.utils import calcular_todas_cotas, obter_ano_letivo
 
 router = APIRouter()
 
-@router.post("/calcular-valores", response_model=ResponseCalculos, tags=["Calculos"])
+@router.post("", response_model=ResponseCalculos, tags=["Calculos"])
 async def calcular_valores(
     ano_letivo_id: Optional[int] = Query(None, description="ID do ano letivo (usa ano ativo se não informado)"),
     db: Session = Depends(get_db)
@@ -20,20 +21,12 @@ async def calcular_valores(
     Se ano_letivo_id não for informado, usa o ano ativo.
     """
     try:
-        # 1. Determinar ano letivo
-        if ano_letivo_id is None:
-            ano_letivo = db.query(AnoLetivo).filter(AnoLetivo.status == StatusAnoLetivo.ATIVO).first()
-            if not ano_letivo:
-                raise HTTPException(status_code=400, detail="Nenhum ano letivo ativo encontrado")
-            ano_letivo_id = ano_letivo.id
-        else:
-            ano_letivo = db.query(AnoLetivo).filter(AnoLetivo.id == ano_letivo_id).first()
-            if not ano_letivo:
-                raise HTTPException(status_code=404, detail=f"Ano letivo ID {ano_letivo_id} não encontrado")
+        # 1. Determinar ano letivo (usando função centralizada)
+        ano_letivo, ano_letivo_id = obter_ano_letivo(db, ano_letivo_id)
         
-        print(f"\n{'='*60}")
-        print(f"CALCULANDO VALORES - ANO LETIVO: {ano_letivo.ano}")
-        print(f"{'='*60}\n")
+        logger.info("="*60)
+        logger.info(f"CALCULANDO VALORES - ANO LETIVO: {ano_letivo.ano}")
+        logger.info("="*60)
         
         # 2. Buscar escolas do ano letivo
         escolas = db.query(Escola).join(Upload).filter(
@@ -125,9 +118,9 @@ async def calcular_valores(
         
         db.commit()
         
-        print(f"✅ Cálculos concluídos para {len(escolas_calculadas)} escolas")
-        print(f"💰 Valor total: R$ {valor_total_geral:,.2f}")
-        print(f"{'='*60}\n")
+        logger.info(f"✅ Cálculos concluídos para {len(escolas_calculadas)} escolas")
+        logger.info(f"💰 Valor total: R$ {valor_total_geral:,.2f}")
+        logger.info("="*60)
         
         return ResponseCalculos(
             success=True,
@@ -143,5 +136,5 @@ async def calcular_valores(
         raise
     except Exception as e:
         db.rollback()
-        print(f"❌ Erro ao calcular: {str(e)}")
+        logger.exception("❌ Erro ao calcular valores")
         raise HTTPException(status_code=500, detail=f"Erro ao calcular valores: {str(e)}")

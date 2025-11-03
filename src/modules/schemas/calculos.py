@@ -38,4 +38,4 @@ class ResponseCalculos(BaseModel):
     ano_letivo_id: Optional[int] = None 
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Compatível com SQLAlchemy (antigo orm_mode)
