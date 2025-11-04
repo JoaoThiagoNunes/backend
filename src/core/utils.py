@@ -1,28 +1,53 @@
 import pandas as pd
 from sqlalchemy.orm import Session
-from src.modules.models import Upload, AnoLetivo, StatusAnoLetivo
+from src.modules.models import Upload, AnoLetivo, StatusAnoLetivo, Escola
 from src.core.logging_config import logger
 from fastapi import HTTPException
 from typing import Dict, Any, Optional, Tuple, Union
+from datetime import datetime
 
 # ==================
 # BUSCAS E LIMPEZA
 # ==================
-def limpar_uploads_antigos(db: Session, ano_letivo_id: int):
+def obter_ou_criar_upload_ativo(db: Session, ano_letivo_id: int, filename: str) -> Upload:
     """
-    Remove uploads anteriores DO MESMO ANO LETIVO.
-    Mantém isolamento entre anos.
+    Busca upload ativo do ano letivo ou cria novo.
+    Se encontrar upload ativo, atualiza filename e data.
+    Mantém o mesmo upload_id para substituir dados ao invés de deletar.
+    
+    Args:
+        db: Sessão do banco de dados
+        ano_letivo_id: ID do ano letivo
+        filename: Nome do arquivo sendo enviado
+    
+    Returns:
+        Upload (existente atualizado ou novo criado)
     """
-    uploads = db.query(Upload).filter(Upload.ano_letivo_id == ano_letivo_id).all()
-    count = 0
-    for up in uploads:
-        db.delete(up)  # Cascade deleta escolas e cálculos
-        count += 1
-    if count > 0:
-        db.commit()
-        logger.info(f"🗑️ {count} upload(s) anterior(es) do ano letivo removido(s)")
+    # Buscar upload ativo do ano
+    upload_existente = db.query(Upload).filter(
+        Upload.ano_letivo_id == ano_letivo_id,
+        Upload.is_active == True
+    ).first()
+    
+    if upload_existente:
+        # Atualizar upload existente (substituir, não deletar)
+        upload_existente.filename = filename
+        upload_existente.upload_date = datetime.now()
+        upload_existente.total_escolas = 0  # Será atualizado depois
+        logger.info(f"📝 Atualizando upload existente ID {upload_existente.id} (substituindo dados)")
+        return upload_existente
     else:
-        db.rollback()  # Se não há nada para deletar, não precisa de commit
+        # Criar novo upload
+        novo_upload = Upload(
+            ano_letivo_id=ano_letivo_id,
+            filename=filename,
+            total_escolas=0,
+            upload_date=datetime.now(),
+            is_active=True
+        )
+        db.add(novo_upload)
+        logger.info(f"✨ Criando novo upload para ano letivo {ano_letivo_id}")
+        return novo_upload
 
 def obter_ano_letivo(
     db: Session,
@@ -249,3 +274,173 @@ def calcular_todas_cotas(row: pd.Series) -> Dict[str, Any]:
     ]), 2)
     
     return cotas
+
+# ===================
+# PARCELAS E ENSINO
+# ===================
+def calcular_porcentagens_ensino(escola: Escola) -> Tuple[float, float]:
+    """
+    Calcula a porcentagem de alunos em cada tipo de ensino (fundamental vs médio).
+    
+    Usa pesos (multiplicadores) para cada tipo de modalidade antes de calcular a porcentagem.
+    
+    Args:
+        escola: Objeto Escola com dados dos alunos
+    
+    Returns:
+        Tupla (porcentagem_fundamental, porcentagem_medio)
+        Valores entre 0.0 e 100.0
+    """
+    # Pesos (multiplicadores) para cada modalidade
+    PESO_FUND_INICIAL = 1.0
+    PESO_FUND_FINAL = 1.10
+    PESO_FUND_INTEGRAL = 1.40
+    PESO_ESP_FUND_REGULAR = 1.0
+    PESO_ESP_FUND_INTEGRAL = 1.40
+    
+    PESO_PROFISSIONALIZANTE = 1.30
+    PESO_ALTERNANCIA = 1.40
+    PESO_MEDIO_INTEGRAL = 1.40
+    PESO_MEDIO_REGULAR = 1.25
+    PESO_ESP_MEDIO_PARCIAL = 1.25
+    PESO_ESP_MEDIO_INTEGRAL = 1.40
+    
+    # Calcular valor ponderado de FUNDAMENTAL (numerador)
+    valor_fundamental = (
+        (escola.fundamental_inicial * PESO_FUND_INICIAL) +
+        (escola.fundamental_final * PESO_FUND_FINAL) +
+        (escola.fundamental_integral * PESO_FUND_INTEGRAL) +
+        (escola.especial_fund_regular * PESO_ESP_FUND_REGULAR) +
+        (escola.especial_fund_integral * PESO_ESP_FUND_INTEGRAL)
+    )
+    
+    # Calcular valor ponderado de MÉDIO
+    valor_medio = (
+        (escola.profissionalizante * PESO_PROFISSIONALIZANTE) +
+        (escola.alternancia * PESO_ALTERNANCIA) +
+        (escola.ensino_medio_integral * PESO_MEDIO_INTEGRAL) +
+        (escola.ensino_medio_regular * PESO_MEDIO_REGULAR) +
+        (escola.especial_medio_parcial * PESO_ESP_MEDIO_PARCIAL) +
+        (escola.especial_medio_integral * PESO_ESP_MEDIO_INTEGRAL)
+    )
+    
+    # Denominador = soma de TODOS (fundamental + médio) com pesos
+    denominador = valor_fundamental + valor_medio
+    
+    # Verificar se há alunos (denominador > 0)
+    if denominador == 0:
+        return (0.0, 0.0)
+    
+    # Calcular porcentagem de FUNDAMENTAL
+    pct_fundamental = (valor_fundamental / denominador) * 100.0
+    
+    # MÉDIO = o que falta para completar 100%
+    pct_medio = 100.0 - pct_fundamental
+    
+    return (round(pct_fundamental, 2), round(pct_medio, 2))
+
+
+def dividir_em_parcelas(valor_reais: float) -> Tuple[int, int]:
+    """
+    Divide um valor em duas parcelas iguais (ou quase iguais).
+    Retorna valores em centavos (inteiros).
+    
+    Args:
+        valor_reais: Valor em reais (float)
+    
+    Returns:
+        Tupla (parcela_1_centavos, parcela_2_centavos)
+    """
+    # Converter para centavos (multiplicar por 100 e arredondar)
+    valor_centavos = int(round(valor_reais * 100))
+    
+    # Dividir em duas parcelas
+    parcela_1 = valor_centavos // 2
+    parcela_2 = valor_centavos - parcela_1  # Resto vai para a segunda parcela
+    
+    return (parcela_1, parcela_2)
+
+
+def dividir_parcela_por_ensino(
+    parcela_centavos: int,
+    porcentagem_fundamental: float,
+    porcentagem_medio: float
+) -> Tuple[int, int]:
+    """
+    Divide uma parcela entre ensino fundamental e médio baseado nas porcentagens.
+    Distribui o resto de centavos de forma determinística.
+    
+    Args:
+        parcela_centavos: Valor da parcela em centavos (inteiro)
+        porcentagem_fundamental: Porcentagem de alunos em fundamental (0-100)
+        porcentagem_medio: Porcentagem de alunos em médio (0-100)
+    
+    Returns:
+        Tupla (valor_fundamental_centavos, valor_medio_centavos)
+    """
+    # Calcular valores baseados nas porcentagens
+    valor_fundamental = int(round((parcela_centavos * porcentagem_fundamental) / 100.0))
+    valor_medio = int(round((parcela_centavos * porcentagem_medio) / 100.0))
+    
+    # Distribuir o resto (se houver)
+    resto = parcela_centavos - (valor_fundamental + valor_medio)
+    
+    if resto != 0:
+        # Distribuir resto para o tipo de ensino com maior porcentagem
+        # Se empate, dar para fundamental
+        if porcentagem_fundamental >= porcentagem_medio:
+            valor_fundamental += resto
+        else:
+            valor_medio += resto
+    
+    return (valor_fundamental, valor_medio)
+
+
+def dividir_cota_em_parcelas_por_ensino(
+    valor_cota_reais: float,
+    porcentagem_fundamental: float,
+    porcentagem_medio: float
+) -> Dict[str, Dict[str, int]]:
+    """
+    Divide uma cota completa em 2 parcelas, e cada parcela por tipo de ensino.
+    
+    Args:
+        valor_cota_reais: Valor total da cota em reais
+        porcentagem_fundamental: Porcentagem de alunos em fundamental
+        porcentagem_medio: Porcentagem de alunos em médio
+    
+    Returns:
+        Dicionário com estrutura:
+        {
+            "parcela_1": {
+                "fundamental": centavos,
+                "medio": centavos
+            },
+            "parcela_2": {
+                "fundamental": centavos,
+                "medio": centavos
+            }
+        }
+    """
+    # Dividir em 2 parcelas
+    parcela_1_centavos, parcela_2_centavos = dividir_em_parcelas(valor_cota_reais)
+    
+    # Dividir cada parcela por ensino
+    parcela_1_fund, parcela_1_medio = dividir_parcela_por_ensino(
+        parcela_1_centavos, porcentagem_fundamental, porcentagem_medio
+    )
+    
+    parcela_2_fund, parcela_2_medio = dividir_parcela_por_ensino(
+        parcela_2_centavos, porcentagem_fundamental, porcentagem_medio
+    )
+    
+    return {
+        "parcela_1": {
+            "fundamental": parcela_1_fund,
+            "medio": parcela_1_medio
+        },
+        "parcela_2": {
+            "fundamental": parcela_2_fund,
+            "medio": parcela_2_medio
+        }
+    }

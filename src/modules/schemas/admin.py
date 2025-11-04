@@ -1,6 +1,3 @@
-"""
-Schemas Pydantic para rotas administrativas.
-"""
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime

@@ -141,6 +141,76 @@ class CalculosProfin(Base):
     
     # Relacionamento
     escola = relationship("Escola", back_populates="calculos")
+    parcelas = relationship("ParcelasProfin", back_populates="calculo", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<CalculosProfin(escola_id={self.escola_id}, total=R$ {self.valor_total:,.2f})>"
+
+
+class TipoCota(str, enum.Enum):
+    """Tipos de cotas PROFIN"""
+    CUSTEIO = "custeio"
+    PROJETO = "projeto"
+    KIT_ESCOLAR = "kit_escolar"
+    UNIFORME = "uniforme"
+    MERENDA = "merenda"
+    SALA_RECURSO = "sala_recurso"
+    PERMANENTE = "permanente"
+    CLIMATIZACAO = "climatizacao"
+    PREUNI = "preuni"
+
+
+class TipoEnsino(str, enum.Enum):
+    """Tipos de ensino"""
+    FUNDAMENTAL = "fundamental"
+    MEDIO = "medio"
+
+
+class ParcelasProfin(Base):
+    """
+    Tabela que armazena as parcelas divididas por cota, número da parcela e tipo de ensino.
+    Cada cota é dividida em 2 parcelas, e cada parcela é dividida por tipo de ensino (fundamental/médio).
+    Valores armazenados em centavos (inteiros) para evitar problemas com floats.
+    """
+    __tablename__ = "parcelas_profin"
+    __table_args__ = (
+        UniqueConstraint('calculo_id', 'tipo_cota', 'numero_parcela', 'tipo_ensino', 
+                       name='uq_parcela_calculo_cota_parcela_ensino'),
+    )
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Chave estrangeira para CalculosProfin
+    calculo_id = Column(Integer, ForeignKey("calculos_profin.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Tipo de cota (custeio, projeto, kit_escolar, etc.)
+    tipo_cota = Column(Enum(TipoCota), nullable=False, index=True)
+    
+    # Número da parcela (1 ou 2)
+    numero_parcela = Column(Integer, nullable=False, index=True)
+    
+    # Tipo de ensino (fundamental ou medio)
+    tipo_ensino = Column(Enum(TipoEnsino), nullable=False, index=True)
+    
+    # Valor em centavos (inteiro para evitar problemas com floats)
+    valor_centavos = Column(Integer, nullable=False, default=0)
+    
+    # Porcentagem de alunos do tipo de ensino (0-100)
+    porcentagem_alunos = Column(Float, nullable=False, default=0.0)
+    
+    # Data de criação
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    
+    # Versão do cálculo (para auditoria)
+    calculation_version = Column(String(50), nullable=True)
+    
+    # Relacionamento
+    calculo = relationship("CalculosProfin", back_populates="parcelas")
+    
+    def __repr__(self):
+        return f"<ParcelasProfin(calculo_id={self.calculo_id}, cota={self.tipo_cota.value}, parcela={self.numero_parcela}, ensino={self.tipo_ensino.value}, valor={self.valor_centavos/100:.2f})>"
+    
+    @property
+    def valor_reais(self) -> float:
+        """Retorna o valor em reais (centavos / 100)"""
+        return self.valor_centavos / 100.0

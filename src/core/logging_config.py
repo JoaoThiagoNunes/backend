@@ -1,7 +1,3 @@
-"""
-Configuração centralizada de logging para o projeto.
-Substitui todos os print() por logging estruturado.
-"""
 import logging
 import sys
 from pathlib import Path
@@ -18,7 +14,7 @@ def setup_logging(log_level: str = LOG_LEVEL) -> logging.Logger:
     Configura o sistema de logging do projeto.
     
     Args:
-        log_level: Nível de log (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        log_level: (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     
     Returns:
         Logger configurado

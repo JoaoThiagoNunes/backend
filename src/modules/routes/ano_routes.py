@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from src.core.database import get_db
+from src.core.logging_config import logger
 from src.modules.schemas.ano import (
     AnoLetivoCreate, AnoLetivoRead, AnoLetivoListResponse,
     AnoLetivoDetailResponse, AnoLetivoCreateResponse,
     AnoLetivoArquivarResponse, AnoLetivoDeleteResponse
 )
-from src.modules.models import  AnoLetivo, StatusAnoLetivo
+from src.modules.models import AnoLetivo, StatusAnoLetivo, Upload
 from datetime import datetime
 
 router = APIRouter()
@@ -59,11 +60,13 @@ def criar_ano_letivo(data: AnoLetivoCreate, db: Session = Depends(get_db)) -> An
     if ano_existente:
         raise HTTPException(status_code=400, detail=f"Ano letivo {data.ano} já existe")
     
-    # Arquivar ano ativo atual (se houver)
+    # Arquivar ano ativo atual (se houver) - MANTÉM os dados históricos
     ano_ativo_atual = db.query(AnoLetivo).filter(AnoLetivo.status == StatusAnoLetivo.ATIVO).first()
     if ano_ativo_atual:
+        # Apenas arquivar o ano anterior (mantém uploads, escolas e cálculos para histórico)
         ano_ativo_atual.status = StatusAnoLetivo.ARQUIVADO
         ano_ativo_atual.arquivado_em = datetime.now()
+        logger.info(f"📦 Ano letivo {ano_ativo_atual.ano} arquivado (dados históricos preservados)")
     
     # Criar novo ano
     novo_ano = AnoLetivo(

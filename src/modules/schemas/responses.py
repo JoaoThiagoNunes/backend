@@ -1,6 +1,3 @@
-"""
-Schemas para respostas padronizadas da API.
-"""
 from pydantic import BaseModel
 from typing import Optional, Any, Dict, List
 

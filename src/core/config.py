@@ -1,7 +1,3 @@
-"""
-Configurações centralizadas da aplicação.
-Todas as variáveis de ambiente e configurações devem ser definidas aqui.
-"""
 import os
 from pathlib import Path
 from typing import List
@@ -22,8 +18,8 @@ DB_NAME = os.environ.get("DB_NAME", "profin_db")
 # AUTENTICAÇÃO
 # ====================
 SECRET_KEY = os.environ.get("SECRET_KEY", "profin-secret-key-change-in-production-2024")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "profin2024")
-ACCESS_TOKEN_EXPIRE_HOURS = 24  # Token válido por 24 horas
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "profin2025")
+ACCESS_TOKEN_EXPIRE_HOURS = 12  # Token válido por 12 horas
 
 # ====================
 # CORS

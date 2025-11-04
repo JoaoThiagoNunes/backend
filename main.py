@@ -51,4 +51,5 @@ app.include_router(admin_router, prefix="/admin")
 app.include_router(ano_router, prefix="/anos")
 app.include_router(upload_router, prefix="/uploads")
 app.include_router(calculo_router, prefix="/calculos")
+app.include_router(parcelas_router, prefix="/parcelas")
 

@@ -1,7 +1,3 @@
-"""
-Sistema de autenticação simples para endpoints críticos.
-Usa JWT para tokens de acesso e senha armazenada em variável de ambiente.
-"""
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from fastapi import Depends, HTTPException, status
@@ -23,12 +19,6 @@ security = HTTPBearer()
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifica se a senha fornecida corresponde ao hash."""
     return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password: str) -> str:
-    """Gera hash da senha (não usado no sistema atual, mas disponível para expansão)."""
-    return pwd_context.hash(password)
-
 
 def create_access_token(data: Dict[str, str], expires_delta: Optional[timedelta] = None) -> str:
     """
@@ -82,12 +72,6 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
 def authenticate_admin(password: str) -> bool:
     """
     Autentica o admin verificando se a senha está correta.
-    
-    Args:
-        password: Senha fornecida pelo usuário
-    
-    Returns:
-        True se a senha estiver correta, False caso contrário
     """
     return password == ADMIN_PASSWORD
 
@@ -97,18 +81,11 @@ def get_current_admin(token_data: Dict[str, Any] = Depends(verify_token)) -> Dic
     """
     Dependência do FastAPI que garante que o usuário está autenticado.
     
-    Use esta dependência em rotas que precisam de autenticação:
-    
-    @router.delete("/endpoint")
-    def endpoint_protegido(current_admin: dict = Depends(get_current_admin)):
-        ...
-    
     Args:
         token_data: Dados do token decodificado (injetado automaticamente)
     
     Returns:
         Dados do token (pode conter informações do usuário)
     """
-    # Se chegou até aqui, o token é válido
     return token_data
 

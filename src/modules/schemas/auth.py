@@ -1,6 +1,3 @@
-"""
-Schemas Pydantic para autenticação.
-"""
 from pydantic import BaseModel
 
 

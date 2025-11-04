@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Optional
 from io import BytesIO
 import pandas as pd
-from src.core.utils import limpar_uploads_antigos, obter_texto, obter_quantidade, validar_indigena_e_quilombola, obter_ano_letivo
+from src.core.utils import obter_texto, obter_quantidade, validar_indigena_e_quilombola, obter_ano_letivo, obter_ou_criar_upload_ativo
 
 router = APIRouter()
 
@@ -144,25 +144,28 @@ async def upload_excel(
         logger.info(f"Total de linhas: {len(df)}")
         logger.debug(f"Colunas: {df.columns.tolist()}")
         
-        # 3. Limpar uploads anteriores DO MESMO ANO
-        limpar_uploads_antigos(db, ano_letivo_id)
-        
-        # 4. Criar registro de upload
-        upload = Upload(
-            ano_letivo_id=ano_letivo_id,
-            filename=file.filename,
-            total_escolas=0,
-            upload_date=datetime.now(),
-            is_active=True
-        )
-        db.add(upload)
-        db.flush()  # Usar flush para obter ID sem commit ainda
+        # 3. Obter ou criar upload ativo (substitui ao invés de deletar)
+        # Busca upload ativo existente ou cria novo, mantendo o mesmo ID para substituição
+        upload = obter_ou_criar_upload_ativo(db, ano_letivo_id, file.filename)
+        db.flush()  # Flush para obter ID se for novo
         db.refresh(upload)
         
-        logger.info(f"Upload registrado com ID: {upload.id}")
+        # 4. Buscar escolas existentes do upload para fazer UPDATE ao invés de INSERT
+        # Mapear escolas existentes por (nome_uex, dre) para fazer UPDATE
+        escolas_existentes = db.query(Escola).filter(Escola.upload_id == upload.id).all()
+        mapa_escolas_existentes = {
+            (e.nome_uex, e.dre): e 
+            for e in escolas_existentes
+        }
         
-        # 5. Salvar cada escola no banco
+        logger.info(f"Upload {'atualizado' if escolas_existentes else 'criado'} com ID: {upload.id}")
+        logger.info(f"Escolas existentes no upload: {len(escolas_existentes)}")
+        
+        # 5. Processar cada linha do arquivo (UPSERT: UPDATE ou INSERT)
+        escolas_processadas = set()  # Para rastrear quais escolas foram processadas
         escolas_salvas = 0
+        escolas_atualizadas = 0
+        escolas_criadas = 0
         escolas_com_erro = []
         
         for idx, row in df.iterrows():
@@ -179,40 +182,71 @@ async def upload_excel(
                 # Obter DRE
                 dre_val = obter_texto(row, "DRE", None)
                 
+                # Chave para identificar escola (nome_uex + dre)
+                chave_escola = (nome_escola, dre_val)
+                
                 if (idx + 1) % 50 == 0 or idx == 0:  # Log apenas a cada 50 linhas
                     logger.debug(f"[{idx + 1}/{len(df)}] Processando: {nome_escola} (DRE: {dre_val or 'N/A'})")
                 
-                # Criar objeto Escola
-                escola_obj = Escola(
-                    upload_id=upload.id,
-                    nome_uex=nome_escola,
-                    dre=dre_val,
-                    total_alunos=obter_quantidade(row, "TOTAL"),
-                    fundamental_inicial=obter_quantidade(row, "FUNDAMENTAL INICIAL"),
-                    fundamental_final=obter_quantidade(row, "FUNDAMENTAL FINAL"),
-                    fundamental_integral=obter_quantidade(row, "FUNDAMENTAL INTEGRAL"),
-                    profissionalizante=obter_quantidade(row, "PROFISSIONALIZANTE"),
-                    alternancia=obter_quantidade(row, "ALTERNÂNCIA"),
-                    ensino_medio_integral=obter_quantidade(row, "ENSINO MÉDIO INTEGRAL"),
-                    ensino_medio_regular=obter_quantidade(row, "ENSINO MÉDIO REGULAR"),
-                    especial_fund_regular=obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR"),
-                    especial_fund_integral=obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL"),
-                    especial_medio_parcial=obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL"),
-                    especial_medio_integral=obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL"),
-                    sala_recurso=obter_quantidade(row, "SALA DE RECURSO"),
-                    climatizacao=obter_quantidade(row, "CLIMATIZAÇÃO"),
-                    preuni=obter_quantidade(row, "PREUNI"),
-                    indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
-                )
+                # Verificar se escola já existe (UPSERT)
+                escola_existente = mapa_escolas_existentes.get(chave_escola)
                 
-                db.add(escola_obj)
-                db.flush()  # Flush para obter ID, commit será feito depois em batch
+                if escola_existente:
+                    # UPDATE: Atualizar escola existente (mantém o mesmo ID)
+                    escola_existente.total_alunos = obter_quantidade(row, "TOTAL")
+                    escola_existente.fundamental_inicial = obter_quantidade(row, "FUNDAMENTAL INICIAL")
+                    escola_existente.fundamental_final = obter_quantidade(row, "FUNDAMENTAL FINAL")
+                    escola_existente.fundamental_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
+                    escola_existente.profissionalizante = obter_quantidade(row, "PROFISSIONALIZANTE")
+                    escola_existente.alternancia = obter_quantidade(row, "ALTERNÂNCIA")
+                    escola_existente.ensino_medio_integral = obter_quantidade(row, "ENSINO MÉDIO INTEGRAL")
+                    escola_existente.ensino_medio_regular = obter_quantidade(row, "ENSINO MÉDIO REGULAR")
+                    escola_existente.especial_fund_regular = obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR")
+                    escola_existente.especial_fund_integral = obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL")
+                    escola_existente.especial_medio_parcial = obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL")
+                    escola_existente.especial_medio_integral = obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL")
+                    escola_existente.sala_recurso = obter_quantidade(row, "SALA DE RECURSO")
+                    escola_existente.climatizacao = obter_quantidade(row, "CLIMATIZAÇÃO")
+                    escola_existente.preuni = obter_quantidade(row, "PREUNI")
+                    escola_existente.indigena_quilombola = validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
+                    # created_at mantém o valor original (não atualiza)
+                    
+                    escolas_atualizadas += 1
+                    escolas_processadas.add(escola_existente.id)
+                else:
+                    # INSERT: Criar nova escola (novo ID)
+                    escola_obj = Escola(
+                        upload_id=upload.id,
+                        nome_uex=nome_escola,
+                        dre=dre_val,
+                        total_alunos=obter_quantidade(row, "TOTAL"),
+                        fundamental_inicial=obter_quantidade(row, "FUNDAMENTAL INICIAL"),
+                        fundamental_final=obter_quantidade(row, "FUNDAMENTAL FINAL"),
+                        fundamental_integral=obter_quantidade(row, "FUNDAMENTAL INTEGRAL"),
+                        profissionalizante=obter_quantidade(row, "PROFISSIONALIZANTE"),
+                        alternancia=obter_quantidade(row, "ALTERNÂNCIA"),
+                        ensino_medio_integral=obter_quantidade(row, "ENSINO MÉDIO INTEGRAL"),
+                        ensino_medio_regular=obter_quantidade(row, "ENSINO MÉDIO REGULAR"),
+                        especial_fund_regular=obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR"),
+                        especial_fund_integral=obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL"),
+                        especial_medio_parcial=obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL"),
+                        especial_medio_integral=obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL"),
+                        sala_recurso=obter_quantidade(row, "SALA DE RECURSO"),
+                        climatizacao=obter_quantidade(row, "CLIMATIZAÇÃO"),
+                        preuni=obter_quantidade(row, "PREUNI"),
+                        indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
+                    )
+                    
+                    db.add(escola_obj)
+                    db.flush()  # Flush para obter ID
+                    escolas_criadas += 1
+                    escolas_processadas.add(escola_obj.id)
                 
                 escolas_salvas += 1
                 
             except Exception as e:
                 error_msg = str(e)
-                logger.error(f"Erro ao processar linha {idx + 1} ({nome_escola}): {error_msg}")
+                logger.error(f"Erro ao processar linha {idx + 1} ({nome_escola if 'nome_escola' in locals() else 'Desconhecido'}): {error_msg}")
                 escolas_com_erro.append({
                     "linha": idx + 1,
                     "nome": nome_escola if 'nome_escola' in locals() else 'Desconhecido',
@@ -220,18 +254,41 @@ async def upload_excel(
                 })
                 continue
         
-        # 6. Commit final (transação padronizada: único commit após todas as operações)
+        # 6. Deletar escolas que não estão mais no novo arquivo (se houver)
+        # Escolas que existiam mas não foram processadas devem ser removidas
+        escolas_para_deletar = [
+            e for e in escolas_existentes 
+            if e.id not in escolas_processadas
+        ]
+        
+        escolas_removidas_count = 0
+        if escolas_para_deletar:
+            for escola_para_deletar in escolas_para_deletar:
+                db.delete(escola_para_deletar)  # Cascade deleta cálculos e parcelas
+                escolas_removidas_count += 1
+            logger.info(f"🗑️ Removidas {escolas_removidas_count} escola(s) que não estão mais no arquivo")
+        
+        # 7. Commit final (transação padronizada: único commit após todas as operações)
         upload.total_escolas = escolas_salvas
         db.commit()
         
-        # 7. Verificar no banco
+        if escolas_atualizadas > 0:
+            logger.info(f"📝 {escolas_atualizadas} escola(s) atualizada(s) (mantendo IDs)")
+        if escolas_criadas > 0:
+            logger.info(f"✨ {escolas_criadas} escola(s) criada(s) (novos IDs)")
+        
+        # 8. Verificar no banco
         total_no_banco = db.query(Escola).filter(Escola.upload_id == upload.id).count()
         
         logger.info("="*60)
         logger.info(f"✅ UPLOAD CONCLUÍDO")
         logger.info(f"Ano letivo: {ano_letivo.ano}")
-        logger.info(f"Escolas salvas: {escolas_salvas}")
-        logger.info(f"Confirmadas no banco: {total_no_banco}")
+        logger.info(f"Escolas processadas: {escolas_salvas}")
+        logger.info(f"  - Atualizadas: {escolas_atualizadas} (IDs mantidos)")
+        logger.info(f"  - Criadas: {escolas_criadas} (novos IDs)")
+        if escolas_removidas_count > 0:
+            logger.info(f"  - Removidas: {escolas_removidas_count}")
+        logger.info(f"Total confirmado no banco: {total_no_banco}")
         logger.warning(f"Erros: {len(escolas_com_erro)}" if escolas_com_erro else "Sem erros")
         logger.info("="*60)
         
