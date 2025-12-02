@@ -1,8 +1,8 @@
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 
 class CalculoItem(BaseModel):
-    profin_custeio: float
+    profin_gestao: float
     profin_projeto: float
     profin_kit_escolar: float
     profin_uniforme: float
@@ -17,7 +17,7 @@ class EscolaCalculo(BaseModel):
     id: int
     dre: Optional[str] = None
     nome_uex: str
-    profin_custeio: float
+    profin_gestao: float
     profin_projeto: float
     profin_kit_escolar: float
     profin_uniforme: float
@@ -38,4 +38,4 @@ class ResponseCalculos(BaseModel):
     ano_letivo_id: Optional[int] = None 
 
     class Config:
-        from_attributes = True  # Compatível com SQLAlchemy (antigo orm_mode)
+        from_attributes = True 

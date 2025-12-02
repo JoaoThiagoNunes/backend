@@ -10,21 +10,6 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 def setup_logging(log_level: str = LOG_LEVEL) -> logging.Logger:
-    """
-    Configura o sistema de logging do projeto.
-    
-    Args:
-        log_level: (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    
-    Returns:
-        Logger configurado
-    
-    Características:
-    - Logs são escritos em arquivo (logs/app.log) com rotação
-    - Logs também são exibidos no console
-    - Arquivo de log é rotacionado quando atinge 10MB (mantém 5 backups)
-    - Formato inclui timestamp, módulo, nível e mensagem
-    """
     # Criar logger principal
     logger = logging.getLogger("profin")
     logger.setLevel(getattr(logging, log_level.upper()))

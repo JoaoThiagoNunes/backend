@@ -1,5 +1,8 @@
-from src.core.database import engine, Base
-from src.modules.models import Upload, Escola, CalculosProfin
+from src.core.database import engine
+from src.modules.shared.base import Base
+from src.modules.features.uploads import Upload
+from src.modules.features.escolas import Escola
+from src.modules.features.calculos import CalculosProfin
 
 def init_database():
     """Inicializa o banco de dados criando todas as tabelas"""

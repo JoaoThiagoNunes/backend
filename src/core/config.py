@@ -17,9 +17,9 @@ DB_NAME = os.environ.get("DB_NAME", "profin_db")
 # ====================
 # AUTENTICAÇÃO
 # ====================
-SECRET_KEY = os.environ.get("SECRET_KEY", "profin-secret-key-change-in-production-2024")
+SECRET_KEY = os.environ.get("SECRET_KEY", "profin-secret-key-change-in-production-2025")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "profin2025")
-ACCESS_TOKEN_EXPIRE_HOURS = 12  # Token válido por 12 horas
+ACCESS_TOKEN_EXPIRE_HOURS = 12 
 
 # ====================
 # CORS

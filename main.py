@@ -1,11 +1,29 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.modules.routes import *
 from src.core.database import engine
 from src.core.logging_config import logger, setup_logging
 from src.core.config import CORS_ORIGINS
 from src.jobs.scheduler import start_scheduler, stop_scheduler
-from src.modules.models import Base
+from src.modules.shared.base import Base
+
+# Importar routers e models centralizados
+from src.modules.api import (
+    # Routers
+    admin_router,
+    ano_router,
+    upload_router,
+    calculo_router,
+    parcelas_router,
+    projeto_router,
+    # Models (para registro no SQLAlchemy)
+    AnoLetivo,
+    Upload,
+    Escola,
+    CalculosProfin,
+    ParcelasProfin,
+    LiberacoesParcela,
+    LiberacoesProjeto,
+)
 
 # Configurar logging antes de qualquer coisa
 setup_logging()
@@ -52,4 +70,5 @@ app.include_router(ano_router, prefix="/anos")
 app.include_router(upload_router, prefix="/uploads")
 app.include_router(calculo_router, prefix="/calculos")
 app.include_router(parcelas_router, prefix="/parcelas")
+app.include_router(projeto_router, prefix="/projetos")
 

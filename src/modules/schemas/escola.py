@@ -4,10 +4,10 @@ from datetime import datetime
 
 
 class EscolaInfo(BaseModel):
-    """Informações básicas de uma escola"""
     id: int
     nome_uex: str
     dre: Optional[str] = None
+    cnpj: Optional[str] = None
     total_alunos: Optional[int] = None
     fundamental_inicial: Optional[int] = None
     fundamental_final: Optional[int] = None
@@ -23,18 +23,18 @@ class EscolaInfo(BaseModel):
     sala_recurso: Optional[int] = None
     climatizacao: Optional[int] = None
     preuni: Optional[int] = None
+    quantidade_projetos_aprovados: Optional[int] = None
+    repasse_por_area: Optional[int] = None
     indigena_quilombola: Optional[str] = None
     created_at: Optional[datetime] = None
 
 
 class EscolaCreate(BaseModel):
-    """Schema para criação de escola"""
     nome_uex: str
     dre: Optional[str] = None
 
 
 class EscolaRead(BaseModel):
-    """Schema para leitura de escola"""
     id: int
     nome_uex: str
     dre: Optional[str] = None

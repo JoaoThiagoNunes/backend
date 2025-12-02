@@ -8,7 +8,7 @@ import logging
 
 from src.core.database import SessionLocal
 from src.core.config import SCHEDULER_TIMEZONE
-from src.modules.models import AnoLetivo, StatusAnoLetivo
+from src.modules.features.anos import AnoLetivo, StatusAnoLetivo
 
 logger = logging.getLogger("profin.scheduler")
 logger.setLevel(logging.INFO)

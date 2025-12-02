@@ -1,34 +1,90 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from src.core.database import get_db
-from src.core.logging_config import logger
-from src.modules.schemas.calculos import *
-from src.modules.models import  *
+from fastapi import HTTPException
+from typing import Optional, List, Dict, Any
 from datetime import datetime
-from typing import Optional
 import pandas as pd
-from src.core.utils import calcular_todas_cotas, obter_ano_letivo
+from src.core.logging_config import logger
+from src.modules.features.calculos import CalculosProfin
+from src.modules.features.escolas import Escola
+from src.modules.features.uploads import Upload
+from src.modules.schemas.calculos import EscolaCalculo
+from src.core.utils import obter_ano_letivo
+from src.modules.features.calculos.utils import calcular_todas_cotas
 
-router = APIRouter()
 
-@router.post("", response_model=ResponseCalculos, tags=["Calculos"])
-async def calcular_valores(
-    ano_letivo_id: Optional[int] = Query(None, description="ID do ano letivo (usa ano ativo se não informado)"),
-    db: Session = Depends(get_db)
-):
-    """
-    Calcula os valores das escolas de um ano letivo específico.
-    Se ano_letivo_id não for informado, usa o ano ativo.
-    """
-    try:
-        # 1. Determinar ano letivo (usando função centralizada)
+class CalculoService:
+    @staticmethod
+    def listar_calculos(db: Session, ano_letivo_id: Optional[int] = None) -> Dict[str, Any]:
+        ano_letivo, ano_id = obter_ano_letivo(db, ano_letivo_id)
+
+        calculos = (
+            db.query(CalculosProfin)
+            .join(Escola)
+            .join(Upload)
+            .options(joinedload(CalculosProfin.escola))
+            .filter(Upload.ano_letivo_id == ano_id)
+            .all()
+        )
+
+        if not calculos:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Nenhum cálculo encontrado para o ano letivo {ano_letivo.ano}",
+            )
+
+        escolas_calculadas: List[EscolaCalculo] = []
+        valor_total_geral = 0.0
+        upload_id = None
+
+        for calculo in calculos:
+            escola = calculo.escola
+            if not escola:
+                continue
+
+            upload_id = upload_id or escola.upload_id
+            valor_total = calculo.valor_total or 0.0
+            valor_total_geral += valor_total
+
+            escolas_calculadas.append(
+                EscolaCalculo(
+                    id=escola.id,
+                    dre=escola.dre,
+                    nome_uex=escola.nome_uex,
+                    profin_gestao=calculo.profin_gestao or 0.0,
+                    profin_projeto=calculo.profin_projeto or 0.0,
+                    profin_kit_escolar=calculo.profin_kit_escolar or 0.0,
+                    profin_uniforme=calculo.profin_uniforme or 0.0,
+                    profin_merenda=calculo.profin_merenda or 0.0,
+                    profin_sala_recurso=calculo.profin_sala_recurso or 0.0,
+                    profin_permanente=calculo.profin_permanente or 0.0,
+                    profin_climatizacao=calculo.profin_climatizacao or 0.0,
+                    profin_preuni=calculo.profin_preuni or 0.0,
+                    valor_total=valor_total,
+                )
+            )
+
+        if not escolas_calculadas:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Nenhum cálculo válido encontrado para o ano letivo {ano_letivo.ano}",
+            )
+
+        return {
+            "ano_letivo": ano_letivo,
+            "ano_letivo_id": ano_id,
+            "escolas_calculadas": escolas_calculadas,
+            "valor_total_geral": round(valor_total_geral, 2),
+            "upload_id": upload_id or 0,
+        }
+    
+    @staticmethod
+    def calcular_valores_para_ano(db: Session, ano_letivo_id: Optional[int] = None) -> Dict[str, Any]:
         ano_letivo, ano_letivo_id = obter_ano_letivo(db, ano_letivo_id)
         
         logger.info("="*60)
         logger.info(f"CALCULANDO VALORES - ANO LETIVO: {ano_letivo.ano}")
         logger.info("="*60)
         
-        # 2. Buscar escolas do ano letivo
         escolas = db.query(Escola).join(Upload).filter(
             Upload.ano_letivo_id == ano_letivo_id
         ).all()
@@ -43,9 +99,7 @@ async def calcular_valores(
         valor_total_geral = 0.0
         upload_id = escolas[0].upload_id if escolas else None
         
-        # 3. Calcular para cada escola
         for escola_obj in escolas:
-            # Criar objeto row-like para cálculos
             row_data = {
                 "TOTAL": escola_obj.total_alunos,
                 "FUNDAMENTAL INICIAL": escola_obj.fundamental_inicial,
@@ -62,22 +116,21 @@ async def calcular_valores(
                 "SALA DE RECURSO": escola_obj.sala_recurso,
                 "CLIMATIZAÇÃO": escola_obj.climatizacao,
                 "PREUNI": escola_obj.preuni,
-                "INDIGENA & QUILOMBOLA": escola_obj.indigena_quilombola
+                "PROJETOS": escola_obj.quantidade_projetos_aprovados,
+                "INDIGENA & QUILOMBOLA": escola_obj.indigena_quilombola,
+                "REPASSE POR AREA": escola_obj.repasse_por_area
             }
             
             row_series = pd.Series(row_data)
-            
-            # Calcular todas as cotas
             cotas = calcular_todas_cotas(row_series)
             
-            # Upsert na tabela CalculosProfin
             calculo_obj = db.query(CalculosProfin).filter(
                 CalculosProfin.escola_id == escola_obj.id
             ).first()
             
             if calculo_obj:
                 # Atualizar cálculo existente
-                calculo_obj.profin_custeio = cotas["profin_custeio"]
+                calculo_obj.profin_gestao = cotas["profin_gestao"]
                 calculo_obj.profin_projeto = cotas["profin_projeto"]
                 calculo_obj.profin_kit_escolar = cotas["profin_kit_escolar"]
                 calculo_obj.profin_uniforme = cotas["profin_uniforme"]
@@ -92,7 +145,7 @@ async def calcular_valores(
                 # Criar novo cálculo
                 calculo_obj = CalculosProfin(
                     escola_id=escola_obj.id,
-                    profin_custeio=cotas["profin_custeio"],
+                    profin_gestao=cotas["profin_gestao"],
                     profin_projeto=cotas["profin_projeto"],
                     profin_kit_escolar=cotas["profin_kit_escolar"],
                     profin_uniforme=cotas["profin_uniforme"],
@@ -118,23 +171,15 @@ async def calcular_valores(
         
         db.commit()
         
-        logger.info(f"✅ Cálculos concluídos para {len(escolas_calculadas)} escolas")
-        logger.info(f"💰 Valor total: R$ {valor_total_geral:,.2f}")
+        logger.info(f"Cálculos concluídos para {len(escolas_calculadas)} escolas")
+        logger.info(f"Valor total: R$ {valor_total_geral:,.2f}")
         logger.info("="*60)
         
-        return ResponseCalculos(
-            success=True,
-            message=f"Cálculos realizados para {len(escolas_calculadas)} escolas do ano {ano_letivo.ano}",
-            total_escolas=len(escolas_calculadas),
-            valor_total_geral=round(valor_total_geral, 2),
-            escolas=escolas_calculadas,
-            upload_id=upload_id,
-            ano_letivo_id=ano_letivo_id
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.exception("❌ Erro ao calcular valores")
-        raise HTTPException(status_code=500, detail=f"Erro ao calcular valores: {str(e)}")
+        return {
+            "ano_letivo": ano_letivo,
+            "ano_letivo_id": ano_letivo_id,
+            "escolas_calculadas": escolas_calculadas,
+            "valor_total_geral": round(valor_total_geral, 2),
+            "upload_id": upload_id,
+        }
+
