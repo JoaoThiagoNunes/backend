@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 from src.core.logging_config import logger
 from src.modules.features.anos import AnoLetivo, StatusAnoLetivo
 from src.modules.schemas.ano import AnoLetivoRead, AnoLetivoCreate

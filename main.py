@@ -3,7 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.database import engine
 from src.core.logging_config import logger, setup_logging
 from src.core.config import CORS_ORIGINS
-from src.jobs.scheduler import start_scheduler, stop_scheduler
+from src.core.middleware import logging_middleware, error_handler_middleware
+from src.core.config_validator import ConfigValidator
+from src.core.jobs.scheduler import start_scheduler, stop_scheduler
 from src.modules.shared.base import Base
 
 # Importar routers e models centralizados
@@ -28,6 +30,13 @@ from src.modules.api import (
 # Configurar logging antes de qualquer coisa
 setup_logging()
 
+# Validar configurações
+try:
+    ConfigValidator.validate_all()
+except Exception as e:
+    logger.error(f"Erro na validação de configurações: {e}")
+    raise
+
 # Criar todas as tabelas
 Base.metadata.create_all(bind=engine)
 
@@ -36,6 +45,11 @@ app = FastAPI(
     description="API para cálculo e gerenciamento de valores PROFIN por escola",
     version="2.0"
 )
+
+# Configurar middlewares
+# Ordem importa: error_handler deve ser o primeiro, logging depois, CORS por último
+app.middleware("http")(error_handler_middleware)
+app.middleware("http")(logging_middleware)
 
 # Configurar CORS (usando configuração centralizada)
 app.add_middleware(
@@ -47,7 +61,7 @@ app.add_middleware(
 )
 
 # ==========================================================
-# SCHEDULER PARA TAREFAS AUTOMÁTICAS (modules/jobs/tasks.py)
+# SCHEDULER PARA TAREFAS AUTOMÁTICAS (core/jobs/scheduler.py)
 # ==========================================================
 
 @app.on_event("startup")

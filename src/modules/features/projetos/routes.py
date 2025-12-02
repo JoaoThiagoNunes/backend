@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Set
 from src.core.database import get_db
 from src.core.logging_config import logger
 from src.core.utils import obter_ano_letivo
-from src.modules.features.calculos import CalculosProfin
 from src.modules.features.escolas import Escola
 from src.modules.features.uploads import Upload
 from src.modules.features.projetos import LiberacoesProjeto, ProjetoService
@@ -372,7 +371,7 @@ def listar_liberacoes_projetos(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("❌ Erro ao listar liberações de projetos")
+        logger.exception("Erro ao listar liberações de projetos")
         raise HTTPException(status_code=500, detail=f"Erro ao listar liberações: {str(e)}")
 
 
@@ -382,7 +381,6 @@ def atualizar_liberacao_projetos(
     request: AtualizarLiberacaoProjetoRequest,
     db: Session = Depends(get_db),
 ) -> LiberacaoProjetoResponse:
-    """Atualiza dados de uma liberação específica de projetos."""
     try:
         liberacao = (
             db.query(LiberacoesProjeto)
@@ -432,7 +430,7 @@ def atualizar_liberacao_projetos(
         raise
     except Exception as e:
         db.rollback()
-        logger.exception("❌ Erro ao atualizar liberação de projetos")
+        logger.exception("Erro ao atualizar liberação de projetos")
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar liberação: {str(e)}")
 
 
@@ -441,7 +439,6 @@ def remover_liberacao_projetos(
     liberacao_id: int,
     db: Session = Depends(get_db),
 ) -> LiberacaoProjetoResponse:
-    """Resetar a liberação de uma escola para projetos."""
     try:
         liberacao = (
             db.query(LiberacoesProjeto)
@@ -472,7 +469,7 @@ def remover_liberacao_projetos(
         raise
     except Exception as e:
         db.rollback()
-        logger.exception("❌ Erro ao remover liberação de projetos")
+        logger.exception("Erro ao remover liberação de projetos")
         raise HTTPException(status_code=500, detail=f"Erro ao remover liberação: {str(e)}")
 
 
@@ -512,7 +509,7 @@ def listar_liberacoes_projetos_por_escola(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("❌ Erro ao listar liberações de projetos por escola")
+        logger.exception("Erro ao listar liberações de projetos por escola")
         raise HTTPException(status_code=500, detail=f"Erro ao listar liberações: {str(e)}")
 
 
@@ -525,7 +522,6 @@ def listar_liberacoes_projetos_por_folha(
     numero_folha: int,
     db: Session = Depends(get_db),
 ) -> ListarLiberacoesProjetosResponse:
-    """Retorna escolas liberadas para projetos em uma folha específica."""
     try:
         if numero_folha <= 0:
             raise HTTPException(status_code=400, detail="numero_folha deve ser maior que 0")
@@ -552,6 +548,6 @@ def listar_liberacoes_projetos_por_folha(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("❌ Erro ao listar liberações de projetos por folha")
+        logger.exception("Erro ao listar liberações de projetos por folha")
         raise HTTPException(status_code=500, detail=f"Erro ao listar liberações: {str(e)}")
 

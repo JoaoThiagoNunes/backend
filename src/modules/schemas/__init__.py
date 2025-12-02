@@ -21,6 +21,40 @@ from .calculos import (
     ResponseCalculos, EscolaCalculo, CalculoItem
 )
 
+from .parcelas import (
+    ParcelaInfo,
+    ParcelaPorCota,
+    EscolaParcelas,
+    SepararParcelasRequest,
+    SepararParcelasResponse,
+    ParcelaDetalhe,
+    ParcelasEscolaResponse,
+    AtualizarLiberacaoRequest,
+    AtualizarFolhaRequest,
+    AtualizarEscolaRequest,
+    EscolaAtualizadaResponse,
+    LiberarParcelasRequest,
+    LiberacaoParcelaInfo,
+    LiberarParcelasResponse,
+    ListarLiberacoesRequest,
+    ListarLiberacoesResponse,
+    AtualizarLiberacaoParcelaRequest,
+    LiberacaoParcelaResponse,
+    EscolaPrevisaoInfo,
+    PrevisaoLiberacaoResponse,
+    RepasseFolhaInfo,
+    RepasseResumoResponse,
+)
+
+from .projetos import (
+    LiberacaoProjetoInfo,
+    LiberarProjetosRequest,
+    LiberarProjetosResponse,
+    ListarLiberacoesProjetosResponse,
+    AtualizarLiberacaoProjetoRequest,
+    LiberacaoProjetoResponse,
+)
+
 
 __all__ = [
     # Admin
@@ -40,4 +74,35 @@ __all__ = [
     # Cálculos
     "ResponseCalculos", "EscolaCalculo", "CalculoItem",
 
+    # Parcelas
+    "ParcelaInfo",
+    "ParcelaPorCota",
+    "EscolaParcelas",
+    "SepararParcelasRequest",
+    "SepararParcelasResponse",
+    "ParcelaDetalhe",
+    "ParcelasEscolaResponse",
+    "AtualizarLiberacaoRequest",
+    "AtualizarFolhaRequest",
+    "AtualizarEscolaRequest",
+    "EscolaAtualizadaResponse",
+    "LiberarParcelasRequest",
+    "LiberacaoParcelaInfo",
+    "LiberarParcelasResponse",
+    "ListarLiberacoesRequest",
+    "ListarLiberacoesResponse",
+    "AtualizarLiberacaoParcelaRequest",
+    "LiberacaoParcelaResponse",
+    "EscolaPrevisaoInfo",
+    "PrevisaoLiberacaoResponse",
+    "RepasseFolhaInfo",
+    "RepasseResumoResponse",
+
+    # Projetos
+    "LiberacaoProjetoInfo",
+    "LiberarProjetosRequest",
+    "LiberarProjetosResponse",
+    "ListarLiberacoesProjetosResponse",
+    "AtualizarLiberacaoProjetoRequest",
+    "LiberacaoProjetoResponse",
 ]

@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
-
 class LiberacaoProjetoInfo(BaseModel):
     id: int
     escola_id: int
@@ -15,11 +14,9 @@ class LiberacaoProjetoInfo(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-
 class LiberarProjetosRequest(BaseModel):
     escola_ids: List[int]
     numero_folha: int
-
 
 class LiberarProjetosResponse(BaseModel):
     success: bool
@@ -28,18 +25,15 @@ class LiberarProjetosResponse(BaseModel):
     numero_folha: int
     liberacoes: List[LiberacaoProjetoInfo]
 
-
 class ListarLiberacoesProjetosResponse(BaseModel):
     success: bool
     total: int
     liberacoes: List[LiberacaoProjetoInfo]
 
-
 class AtualizarLiberacaoProjetoRequest(BaseModel):
     liberada: Optional[bool] = None
     numero_folha: Optional[int] = None
     data_liberacao: Optional[datetime] = None
-
 
 class LiberacaoProjetoResponse(BaseModel):
     success: bool

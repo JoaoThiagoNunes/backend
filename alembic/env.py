@@ -17,13 +17,16 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 from src.modules.shared.base import Base
-# Importar todos os models das features para que o Alembic os detecte
-from src.modules.features.anos import AnoLetivo
-from src.modules.features.uploads import Upload
-from src.modules.features.escolas import Escola
-from src.modules.features.calculos import CalculosProfin
-from src.modules.features.parcelas import ParcelasProfin, LiberacoesParcela
-from src.modules.features.projetos import LiberacoesProjeto
+# Importar todos os models centralizados para que o Alembic os detecte
+from src.modules.api import (
+    AnoLetivo,
+    Upload,
+    Escola,
+    CalculosProfin,
+    ParcelasProfin,
+    LiberacoesParcela,
+    LiberacoesProjeto,
+)
 
 target_metadata = Base.metadata
 

@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-
 class UploadListItem(BaseModel):
     success: bool = True
     id: int
@@ -13,10 +12,8 @@ class UploadListItem(BaseModel):
     total_escolas: int
     is_active: bool
 
-
 class EscolaPlanilhaInfo(BaseModel):
     dados_planilha: Dict[str, Any]
-
 
 class UploadDetailInfo(BaseModel):
     id: int
@@ -26,19 +23,15 @@ class UploadDetailInfo(BaseModel):
     upload_date: datetime
     total_escolas: int
 
-
 class UploadDetailResponse(BaseModel):
     success: bool = True
     upload: UploadDetailInfo
     escolas: List[EscolaPlanilhaInfo]
 
-
-
 class ErroUpload(BaseModel):
     linha: int
     nome: str
     erro: str
-
 
 class UploadExcelResponse(BaseModel):
     success: bool = True

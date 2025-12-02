@@ -1,54 +1,9 @@
-"""
-Utilitários genéricos compartilhados entre módulos.
-Funções específicas de domínio devem estar em seus respectivos módulos.
-"""
 import pandas as pd
 from sqlalchemy.orm import Session
-from src.modules.features.uploads import Upload
 from src.modules.features.anos import AnoLetivo, StatusAnoLetivo
-from src.core.logging_config import logger
 from fastapi import HTTPException
 from typing import Optional, Tuple, Union
-from datetime import datetime
 
-# ==================
-# BUSCAS E LIMPEZA
-# ==================
-VALOR_PROJETO_UNITARIO = 5000.0
-COLUNAS_PROJETOS_APROVADOS = [
-    "quantidade de projetos aprovados",
-    "quantidade de projetos",
-    "qtd de projetos",
-    "qtd projetos",
-    "projetos aprovados",
-    "projetos",
-]
-
-
-def obter_ou_criar_upload_ativo(db: Session, ano_letivo_id: int, filename: str) -> Upload:
-    upload_existente = db.query(Upload).filter(
-        Upload.ano_letivo_id == ano_letivo_id,
-        Upload.is_active == True
-    ).first()
-    
-    if upload_existente:
-        upload_existente.filename = filename
-        upload_existente.upload_date = datetime.now()
-        upload_existente.total_escolas = 0 
-        logger.info(f"📝 Atualizando upload existente ID {upload_existente.id} (substituindo dados)")
-        return upload_existente
-    else:
-        # Criar novo upload
-        novo_upload = Upload(
-            ano_letivo_id=ano_letivo_id,
-            filename=filename,
-            total_escolas=0,
-            upload_date=datetime.now(),
-            is_active=True
-        )
-        db.add(novo_upload)
-        logger.info(f"✨ Criando novo upload para ano letivo {ano_letivo_id}")
-        return novo_upload
 
 def obter_ano_letivo(
     db: Session,
@@ -102,13 +57,6 @@ def obter_quantidade_por_nome(row: pd.Series, nome_normalizado: str) -> int:
             return obter_quantidade(row, coluna)
     return 0
 
-
-def obter_quantidade_projetos_aprovados(row: pd.Series) -> int:
-    for coluna in COLUNAS_PROJETOS_APROVADOS:
-        quantidade = obter_quantidade_por_nome(row, coluna)
-        if quantidade:
-            return quantidade
-    return 0
 
 def obter_texto(row: pd.Series, coluna: str, default: str = "") -> str:
     valor = row.get(coluna, default)

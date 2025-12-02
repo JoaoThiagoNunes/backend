@@ -1,7 +1,6 @@
 from typing import Tuple, Dict
 from src.modules.features.escolas import Escola
 
-
 def calcular_porcentagens_ensino(escola: Escola) -> Tuple[float, float]:
     # Pesos (multiplicadores) para cada modalidade
     PESO_FUND_INICIAL = 1.0

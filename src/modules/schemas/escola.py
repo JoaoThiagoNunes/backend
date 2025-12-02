@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
-
 class EscolaInfo(BaseModel):
     id: int
     nome_uex: str
@@ -28,11 +27,9 @@ class EscolaInfo(BaseModel):
     indigena_quilombola: Optional[str] = None
     created_at: Optional[datetime] = None
 
-
 class EscolaCreate(BaseModel):
     nome_uex: str
     dre: Optional[str] = None
-
 
 class EscolaRead(BaseModel):
     id: int

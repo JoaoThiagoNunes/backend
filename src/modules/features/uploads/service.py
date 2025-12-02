@@ -1,7 +1,3 @@
-"""
-Service: Upload de Planilhas
-Contém a lógica de negócio para operações de upload.
-"""
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import Optional, List, Dict, Any
@@ -13,32 +9,17 @@ from src.modules.features.escolas import Escola
 from src.modules.schemas.upload import UploadListItem, UploadDetailInfo, EscolaPlanilhaInfo
 from src.core.utils import (
     obter_ano_letivo,
-    obter_ou_criar_upload_ativo,
     obter_texto,
     obter_quantidade,
     validar_indigena_e_quilombola,
-    obter_quantidade_projetos_aprovados,
 )
+from src.modules.features.uploads.utils import obter_ou_criar_upload_ativo
+from src.modules.features.projetos.utils import obter_quantidade_projetos_aprovados
 
 
 class UploadService:
-    """Service para gerenciar uploads de planilhas"""
-    
     @staticmethod
     def obter_upload_unico(db: Session, ano_letivo_id: Optional[int] = None) -> UploadListItem:
-        """
-        Obtém o upload mais recente (opcionalmente filtrado por ano letivo).
-        
-        Args:
-            db: Sessão do banco de dados
-            ano_letivo_id: ID do ano letivo (opcional)
-            
-        Returns:
-            Informações do upload mais recente
-            
-        Raises:
-            HTTPException: Se nenhum upload for encontrado
-        """
         query = db.query(Upload)
         
         if ano_letivo_id:
@@ -61,19 +42,6 @@ class UploadService:
     
     @staticmethod
     def obter_upload_detalhado(db: Session, ano_letivo_id: Optional[int] = None) -> Dict[str, Any]:
-        """
-        Obtém detalhes completos de um upload incluindo todas as escolas.
-        
-        Args:
-            db: Sessão do banco de dados
-            ano_letivo_id: ID do ano letivo (opcional, usa ativo se não informado)
-            
-        Returns:
-            Dicionário com informações do upload e escolas
-            
-        Raises:
-            HTTPException: Se o upload não for encontrado
-        """
         _, ano_id = obter_ano_letivo(db, ano_letivo_id)
         upload = db.query(Upload).filter(Upload.ano_letivo_id == ano_id).first()
         if not upload:
@@ -133,21 +101,6 @@ class UploadService:
         filename: str,
         ano_letivo_id: Optional[int] = None
     ) -> Dict[str, Any]:
-        """
-        Processa uma planilha Excel/CSV e salva as escolas no banco.
-        
-        Args:
-            db: Sessão do banco de dados
-            file_contents: Conteúdo do arquivo em bytes
-            filename: Nome do arquivo
-            ano_letivo_id: ID do ano letivo (opcional)
-            
-        Returns:
-            Dicionário com estatísticas do processamento
-            
-        Raises:
-            HTTPException: Se houver erro no processamento
-        """
         ano_letivo, ano_letivo_id = obter_ano_letivo(db, ano_letivo_id)
         
         logger.info("="*60)
@@ -287,20 +240,20 @@ class UploadService:
             for escola_para_deletar in escolas_para_deletar:
                 db.delete(escola_para_deletar)
                 escolas_removidas_count += 1
-            logger.info(f"🗑️ Removidas {escolas_removidas_count} escola(s) que não estão mais no arquivo")
+            logger.info(f"Removidas {escolas_removidas_count} escola(s) que não estão mais no arquivo")
         
         upload.total_escolas = escolas_salvas
         db.commit()
         
         if escolas_atualizadas > 0:
-            logger.info(f"📝 {escolas_atualizadas} escola(s) atualizada(s) (mantendo IDs)")
+            logger.info(f"{escolas_atualizadas} escola(s) atualizada(s) (mantendo IDs)")
         if escolas_criadas > 0:
-            logger.info(f"✨ {escolas_criadas} escola(s) criada(s) (novos IDs)")
+            logger.info(f"{escolas_criadas} escola(s) criada(s) (novos IDs)")
         
         total_no_banco = db.query(Escola).filter(Escola.upload_id == upload.id).count()
         
         logger.info("="*60)
-        logger.info("✅ UPLOAD CONCLUÍDO")
+        logger.info("UPLOAD CONCLUÍDO")
         logger.info(f"Ano letivo: {ano_letivo.ano}")
         logger.info(f"Escolas processadas: {escolas_salvas}")
         logger.info(f"  - Atualizadas: {escolas_atualizadas} (IDs mantidos)")

@@ -1,6 +1,5 @@
 import logging
 import sys
-from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from src.core.config import LOG_DIR, LOG_LEVEL
 

@@ -1,11 +1,7 @@
-from sqlalchemy.orm import Session
-from fastapi import HTTPException
-from typing import Optional, List, Dict, Any
-from src.core.logging_config import logger
-from src.modules.features.projetos import LiberacoesProjeto
+from typing import Optional
 from src.modules.features.escolas import Escola
 from src.modules.features.calculos import CalculosProfin
-from src.core.utils import VALOR_PROJETO_UNITARIO
+from src.modules.features.projetos.constants import VALOR_PROJETO_UNITARIO
 
 
 class ProjetoService:
