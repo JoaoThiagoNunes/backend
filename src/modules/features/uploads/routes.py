@@ -76,7 +76,6 @@ async def upload_excel(
     except (HTTPException, DomainException):
         raise
     except Exception as e:
-        db.rollback()
         logger.exception("ERRO NO UPLOAD")
         raise HTTPException(status_code=500, detail=f"Erro ao processar arquivo: {str(e)}")
 

@@ -49,7 +49,6 @@ async def calcular_valores(
     except (HTTPException, DomainException):
         raise
     except Exception as e:
-        db.rollback()
         logger.exception("Erro ao calcular valores")
         raise HTTPException(status_code=500, detail=f"Erro ao calcular valores: {str(e)}")
 

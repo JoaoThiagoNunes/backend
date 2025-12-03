@@ -3,6 +3,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import pandas as pd
 from src.core.logging_config import logger
+from src.core.database import transaction
 from src.core.exceptions import (
     CalculoNaoEncontradoException,
     EscolaNaoEncontradaException
@@ -93,77 +94,76 @@ class CalculoService:
         valor_total_geral = 0.0
         upload_id = escolas[0].upload_id if escolas else None
         
-        for escola_obj in escolas:
-            row_data = {
-                "TOTAL": escola_obj.total_alunos,
-                "FUNDAMENTAL INICIAL": escola_obj.fundamental_inicial,
-                "FUNDAMENTAL FINAL": escola_obj.fundamental_final,
-                "FUNDAMENTAL INTEGRAL": escola_obj.fundamental_integral,
-                "PROFISSIONALIZANTE": escola_obj.profissionalizante,
-                "ALTERNÂNCIA": escola_obj.alternancia,
-                "ENSINO MÉDIO INTEGRAL": escola_obj.ensino_medio_integral,
-                "ENSINO MÉDIO REGULAR": escola_obj.ensino_medio_regular,
-                "ESPECIAL FUNDAMENTAL REGULAR": escola_obj.especial_fund_regular,
-                "ESPECIAL FUNDAMENTAL INTEGRAL": escola_obj.especial_fund_integral,
-                "ESPECIAL MÉDIO PARCIAL": escola_obj.especial_medio_parcial,
-                "ESPECIAL MÉDIO INTEGRAL": escola_obj.especial_medio_integral,
-                "SALA DE RECURSO": escola_obj.sala_recurso,
-                "CLIMATIZAÇÃO": escola_obj.climatizacao,
-                "PREUNI": escola_obj.preuni,
-                "PROJETOS": escola_obj.quantidade_projetos_aprovados,
-                "INDIGENA & QUILOMBOLA": escola_obj.indigena_quilombola,
-                "REPASSE POR AREA": escola_obj.repasse_por_area
-            }
-            
-            row_series = pd.Series(row_data)
-            cotas = calcular_todas_cotas(row_series)
-            
-            calculo_obj = db.query(CalculosProfin).filter(
-                CalculosProfin.escola_id == escola_obj.id
-            ).first()
-            
-            if calculo_obj:
-                # Atualizar cálculo existente
-                calculo_obj.profin_gestao = cotas["profin_gestao"]
-                calculo_obj.profin_projeto = cotas["profin_projeto"]
-                calculo_obj.profin_kit_escolar = cotas["profin_kit_escolar"]
-                calculo_obj.profin_uniforme = cotas["profin_uniforme"]
-                calculo_obj.profin_merenda = cotas["profin_merenda"]
-                calculo_obj.profin_sala_recurso = cotas["profin_sala_recurso"]
-                calculo_obj.profin_permanente = cotas["profin_permanente"]
-                calculo_obj.profin_climatizacao = cotas["profin_climatizacao"]
-                calculo_obj.profin_preuni = cotas["profin_preuni"]
-                calculo_obj.valor_total = cotas["valor_total"]
-                calculo_obj.calculated_at = datetime.now()
-            else:
-                # Criar novo cálculo
-                calculo_obj = CalculosProfin(
-                    escola_id=escola_obj.id,
-                    profin_gestao=cotas["profin_gestao"],
-                    profin_projeto=cotas["profin_projeto"],
-                    profin_kit_escolar=cotas["profin_kit_escolar"],
-                    profin_uniforme=cotas["profin_uniforme"],
-                    profin_merenda=cotas["profin_merenda"],
-                    profin_sala_recurso=cotas["profin_sala_recurso"],
-                    profin_permanente=cotas["profin_permanente"],
-                    profin_climatizacao=cotas["profin_climatizacao"],
-                    profin_preuni=cotas["profin_preuni"],
-                    valor_total=cotas["valor_total"],
-                    calculated_at=datetime.now()
-                )
-                db.add(calculo_obj)
-            
-            escola_data = {
-                "id": escola_obj.id,
-                "nome_uex": escola_obj.nome_uex,
-                "dre": escola_obj.dre,
-                **cotas
-            }
-            
-            escolas_calculadas.append(escola_data)
-            valor_total_geral += cotas["valor_total"]
-        
-        db.commit()
+        with transaction(db):
+            for escola_obj in escolas:
+                row_data = {
+                    "TOTAL": escola_obj.total_alunos,
+                    "FUNDAMENTAL INICIAL": escola_obj.fundamental_inicial,
+                    "FUNDAMENTAL FINAL": escola_obj.fundamental_final,
+                    "FUNDAMENTAL INTEGRAL": escola_obj.fundamental_integral,
+                    "PROFISSIONALIZANTE": escola_obj.profissionalizante,
+                    "ALTERNÂNCIA": escola_obj.alternancia,
+                    "ENSINO MÉDIO INTEGRAL": escola_obj.ensino_medio_integral,
+                    "ENSINO MÉDIO REGULAR": escola_obj.ensino_medio_regular,
+                    "ESPECIAL FUNDAMENTAL REGULAR": escola_obj.especial_fund_regular,
+                    "ESPECIAL FUNDAMENTAL INTEGRAL": escola_obj.especial_fund_integral,
+                    "ESPECIAL MÉDIO PARCIAL": escola_obj.especial_medio_parcial,
+                    "ESPECIAL MÉDIO INTEGRAL": escola_obj.especial_medio_integral,
+                    "SALA DE RECURSO": escola_obj.sala_recurso,
+                    "CLIMATIZAÇÃO": escola_obj.climatizacao,
+                    "PREUNI": escola_obj.preuni,
+                    "PROJETOS": escola_obj.quantidade_projetos_aprovados,
+                    "INDIGENA & QUILOMBOLA": escola_obj.indigena_quilombola,
+                    "REPASSE POR AREA": escola_obj.repasse_por_area
+                }
+                
+                row_series = pd.Series(row_data)
+                cotas = calcular_todas_cotas(row_series)
+                
+                calculo_obj = db.query(CalculosProfin).filter(
+                    CalculosProfin.escola_id == escola_obj.id
+                ).first()
+                
+                if calculo_obj:
+                    # Atualizar cálculo existente
+                    calculo_obj.profin_gestao = cotas["profin_gestao"]
+                    calculo_obj.profin_projeto = cotas["profin_projeto"]
+                    calculo_obj.profin_kit_escolar = cotas["profin_kit_escolar"]
+                    calculo_obj.profin_uniforme = cotas["profin_uniforme"]
+                    calculo_obj.profin_merenda = cotas["profin_merenda"]
+                    calculo_obj.profin_sala_recurso = cotas["profin_sala_recurso"]
+                    calculo_obj.profin_permanente = cotas["profin_permanente"]
+                    calculo_obj.profin_climatizacao = cotas["profin_climatizacao"]
+                    calculo_obj.profin_preuni = cotas["profin_preuni"]
+                    calculo_obj.valor_total = cotas["valor_total"]
+                    calculo_obj.calculated_at = datetime.now()
+                else:
+                    # Criar novo cálculo
+                    calculo_obj = CalculosProfin(
+                        escola_id=escola_obj.id,
+                        profin_gestao=cotas["profin_gestao"],
+                        profin_projeto=cotas["profin_projeto"],
+                        profin_kit_escolar=cotas["profin_kit_escolar"],
+                        profin_uniforme=cotas["profin_uniforme"],
+                        profin_merenda=cotas["profin_merenda"],
+                        profin_sala_recurso=cotas["profin_sala_recurso"],
+                        profin_permanente=cotas["profin_permanente"],
+                        profin_climatizacao=cotas["profin_climatizacao"],
+                        profin_preuni=cotas["profin_preuni"],
+                        valor_total=cotas["valor_total"],
+                        calculated_at=datetime.now()
+                    )
+                    db.add(calculo_obj)
+                
+                escola_data = {
+                    "id": escola_obj.id,
+                    "nome_uex": escola_obj.nome_uex,
+                    "dre": escola_obj.dre,
+                    **cotas
+                }
+                
+                escolas_calculadas.append(escola_data)
+                valor_total_geral += cotas["valor_total"]
         
         logger.info(f"Cálculos concluídos para {len(escolas_calculadas)} escolas")
         logger.info(f"Valor total: R$ {valor_total_geral:,.2f}")

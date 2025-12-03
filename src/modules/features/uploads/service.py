@@ -3,6 +3,7 @@ from typing import Optional, List, Dict, Any
 from io import BytesIO
 import pandas as pd
 from src.core.logging_config import logger
+from src.core.database import transaction
 from src.core.exceptions import UploadNaoEncontradoException
 from src.modules.features.uploads import Upload
 from src.modules.features.escolas import Escola
@@ -138,112 +139,112 @@ class UploadService:
         escolas_criadas = 0
         escolas_com_erro = []
         
-        for idx, row in df.iterrows():
-            try:
-                nome_escola = (
-                    row.get('NOME DA UEX') or 
-                    row.get('nome') or 
-                    row.get('Escola') or 
-                    f"Escola {idx + 1}"
-                )
-                nome_escola = str(nome_escola).strip()
-                
-                dre_val = obter_texto(row, "DRE", None)
-                chave_escola = (nome_escola, dre_val)
-                
-                if (idx + 1) % 50 == 0 or idx == 0:
-                    logger.debug(f"[{idx + 1}/{len(df)}] Processando: {nome_escola} (DRE: {dre_val or 'N/A'})")
-                
-                escola_existente = mapa_escolas_existentes.get(chave_escola)
-                
-                if escola_existente:
-                    # Atualizar escola existente
-                    escola_existente.total_alunos = obter_quantidade(row, "TOTAL")
-                    escola_existente.cnpj = obter_texto(row, "CNPJ", None)
-                    escola_existente.fundamental_inicial = obter_quantidade(row, "FUNDAMENTAL INICIAL")
-                    escola_existente.fundamental_final = obter_quantidade(row, "FUNDAMENTAL FINAL")
-                    escola_existente.fundamental_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
-                    escola_existente.profissionalizante = obter_quantidade(row, "PROFISSIONALIZANTE")
-                    escola_existente.alternancia = obter_quantidade(row, "ALTERNÂNCIA")
-                    escola_existente.ensino_medio_integral = obter_quantidade(row, "ENSINO MÉDIO INTEGRAL")
-                    escola_existente.ensino_medio_regular = obter_quantidade(row, "ENSINO MÉDIO REGULAR")
-                    escola_existente.especial_fund_regular = obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR")
-                    escola_existente.especial_fund_integral = obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL")
-                    escola_existente.especial_medio_parcial = obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL")
-                    escola_existente.especial_medio_integral = obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL")
-                    escola_existente.sala_recurso = obter_quantidade(row, "SALA DE RECURSO")
-                    escola_existente.climatizacao = obter_quantidade(row, "CLIMATIZAÇÃO")
-                    escola_existente.preuni = obter_quantidade(row, "PREUNI")
-                    escola_existente.quantidade_projetos_aprovados = obter_quantidade_projetos_aprovados(row)
-                    escola_existente.repasse_por_area = obter_quantidade(row, "REPASSE POR AREA")
-                    escola_existente.indigena_quilombola = validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
-
-                    escolas_atualizadas += 1
-                    escolas_processadas.add(escola_existente.id)
-                else:
-                    # Criar nova escola
-                    escola_obj = Escola(
-                        upload_id=upload.id,
-                        nome_uex=nome_escola,
-                        dre=dre_val,
-                        cnpj=obter_texto(row, "CNPJ", None),
-                        total_alunos=obter_quantidade(row, "TOTAL"),
-                        fundamental_inicial=obter_quantidade(row, "FUNDAMENTAL INICIAL"),
-                        fundamental_final=obter_quantidade(row, "FUNDAMENTAL FINAL"),
-                        fundamental_integral=obter_quantidade(row, "FUNDAMENTAL INTEGRAL"),
-                        profissionalizante=obter_quantidade(row, "PROFISSIONALIZANTE"),
-                        alternancia=obter_quantidade(row, "ALTERNÂNCIA"),
-                        ensino_medio_integral=obter_quantidade(row, "ENSINO MÉDIO INTEGRAL"),
-                        ensino_medio_regular=obter_quantidade(row, "ENSINO MÉDIO REGULAR"),
-                        especial_fund_regular=obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR"),
-                        especial_fund_integral=obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL"),
-                        especial_medio_parcial=obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL"),
-                        especial_medio_integral=obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL"),
-                        sala_recurso=obter_quantidade(row, "SALA DE RECURSO"),
-                        climatizacao=obter_quantidade(row, "CLIMATIZAÇÃO"),
-                        preuni=obter_quantidade(row, "PREUNI"),
-                        quantidade_projetos_aprovados=obter_quantidade_projetos_aprovados(row),
-                        repasse_por_area=obter_quantidade(row, "REPASSE POR AREA"),
-                        indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
+        with transaction(db):
+            for idx, row in df.iterrows():
+                try:
+                    nome_escola = (
+                        row.get('NOME DA UEX') or 
+                        row.get('nome') or 
+                        row.get('Escola') or 
+                        f"Escola {idx + 1}"
                     )
+                    nome_escola = str(nome_escola).strip()
                     
-                    db.add(escola_obj)
-                    db.flush()
-                    escolas_criadas += 1
-                    escolas_processadas.add(escola_obj.id)
-                
-                escolas_salvas += 1
-                
-            except Exception as e:
-                error_msg = str(e)
-                logger.error(
-                    "Erro ao processar linha %s (%s): %s",
-                    idx + 1,
-                    nome_escola if 'nome_escola' in locals() else 'Desconhecido',
-                    error_msg,
-                )
-                escolas_com_erro.append({
-                    "linha": idx + 1,
-                    "nome": nome_escola if 'nome_escola' in locals() else 'Desconhecido',
-                    "erro": error_msg
-                })
-                continue
-        
-        # Remover escolas que não estão mais no arquivo
-        escolas_para_deletar = [
-            e for e in escolas_existentes 
-            if e.id not in escolas_processadas
-        ]
-        
-        escolas_removidas_count = 0
-        if escolas_para_deletar:
-            for escola_para_deletar in escolas_para_deletar:
-                db.delete(escola_para_deletar)
-                escolas_removidas_count += 1
-            logger.info(f"Removidas {escolas_removidas_count} escola(s) que não estão mais no arquivo")
-        
-        upload.total_escolas = escolas_salvas
-        db.commit()
+                    dre_val = obter_texto(row, "DRE", None)
+                    chave_escola = (nome_escola, dre_val)
+                    
+                    if (idx + 1) % 50 == 0 or idx == 0:
+                        logger.debug(f"[{idx + 1}/{len(df)}] Processando: {nome_escola} (DRE: {dre_val or 'N/A'})")
+                    
+                    escola_existente = mapa_escolas_existentes.get(chave_escola)
+                    
+                    if escola_existente:
+                        # Atualizar escola existente
+                        escola_existente.total_alunos = obter_quantidade(row, "TOTAL")
+                        escola_existente.cnpj = obter_texto(row, "CNPJ", None)
+                        escola_existente.fundamental_inicial = obter_quantidade(row, "FUNDAMENTAL INICIAL")
+                        escola_existente.fundamental_final = obter_quantidade(row, "FUNDAMENTAL FINAL")
+                        escola_existente.fundamental_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
+                        escola_existente.profissionalizante = obter_quantidade(row, "PROFISSIONALIZANTE")
+                        escola_existente.alternancia = obter_quantidade(row, "ALTERNÂNCIA")
+                        escola_existente.ensino_medio_integral = obter_quantidade(row, "ENSINO MÉDIO INTEGRAL")
+                        escola_existente.ensino_medio_regular = obter_quantidade(row, "ENSINO MÉDIO REGULAR")
+                        escola_existente.especial_fund_regular = obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR")
+                        escola_existente.especial_fund_integral = obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL")
+                        escola_existente.especial_medio_parcial = obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL")
+                        escola_existente.especial_medio_integral = obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL")
+                        escola_existente.sala_recurso = obter_quantidade(row, "SALA DE RECURSO")
+                        escola_existente.climatizacao = obter_quantidade(row, "CLIMATIZAÇÃO")
+                        escola_existente.preuni = obter_quantidade(row, "PREUNI")
+                        escola_existente.quantidade_projetos_aprovados = obter_quantidade_projetos_aprovados(row)
+                        escola_existente.repasse_por_area = obter_quantidade(row, "REPASSE POR AREA")
+                        escola_existente.indigena_quilombola = validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
+
+                        escolas_atualizadas += 1
+                        escolas_processadas.add(escola_existente.id)
+                    else:
+                        # Criar nova escola
+                        escola_obj = Escola(
+                            upload_id=upload.id,
+                            nome_uex=nome_escola,
+                            dre=dre_val,
+                            cnpj=obter_texto(row, "CNPJ", None),
+                            total_alunos=obter_quantidade(row, "TOTAL"),
+                            fundamental_inicial=obter_quantidade(row, "FUNDAMENTAL INICIAL"),
+                            fundamental_final=obter_quantidade(row, "FUNDAMENTAL FINAL"),
+                            fundamental_integral=obter_quantidade(row, "FUNDAMENTAL INTEGRAL"),
+                            profissionalizante=obter_quantidade(row, "PROFISSIONALIZANTE"),
+                            alternancia=obter_quantidade(row, "ALTERNÂNCIA"),
+                            ensino_medio_integral=obter_quantidade(row, "ENSINO MÉDIO INTEGRAL"),
+                            ensino_medio_regular=obter_quantidade(row, "ENSINO MÉDIO REGULAR"),
+                            especial_fund_regular=obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR"),
+                            especial_fund_integral=obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL"),
+                            especial_medio_parcial=obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL"),
+                            especial_medio_integral=obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL"),
+                            sala_recurso=obter_quantidade(row, "SALA DE RECURSO"),
+                            climatizacao=obter_quantidade(row, "CLIMATIZAÇÃO"),
+                            preuni=obter_quantidade(row, "PREUNI"),
+                            quantidade_projetos_aprovados=obter_quantidade_projetos_aprovados(row),
+                            repasse_por_area=obter_quantidade(row, "REPASSE POR AREA"),
+                            indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
+                        )
+                        
+                        db.add(escola_obj)
+                        db.flush()
+                        escolas_criadas += 1
+                        escolas_processadas.add(escola_obj.id)
+                    
+                    escolas_salvas += 1
+                    
+                except Exception as e:
+                    error_msg = str(e)
+                    logger.error(
+                        "Erro ao processar linha %s (%s): %s",
+                        idx + 1,
+                        nome_escola if 'nome_escola' in locals() else 'Desconhecido',
+                        error_msg,
+                    )
+                    escolas_com_erro.append({
+                        "linha": idx + 1,
+                        "nome": nome_escola if 'nome_escola' in locals() else 'Desconhecido',
+                        "erro": error_msg
+                    })
+                    continue
+            
+            # Remover escolas que não estão mais no arquivo
+            escolas_para_deletar = [
+                e for e in escolas_existentes 
+                if e.id not in escolas_processadas
+            ]
+            
+            escolas_removidas_count = 0
+            if escolas_para_deletar:
+                for escola_para_deletar in escolas_para_deletar:
+                    db.delete(escola_para_deletar)
+                    escolas_removidas_count += 1
+                logger.info(f"Removidas {escolas_removidas_count} escola(s) que não estão mais no arquivo")
+            
+            upload.total_escolas = escolas_salvas
         
         if escolas_atualizadas > 0:
             logger.info(f"{escolas_atualizadas} escola(s) atualizada(s) (mantendo IDs)")

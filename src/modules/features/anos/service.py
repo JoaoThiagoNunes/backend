@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List
 from src.core.logging_config import logger
+from src.core.database import transaction
 from src.core.exceptions import (
     AnoLetivoJaExisteException,
     AnoLetivoNaoEncontradoException,
@@ -40,21 +41,22 @@ class AnoLetivoService:
             AnoLetivo.status == StatusAnoLetivo.ATIVO
         ).first()
         
-        if ano_ativo_atual:
-            # Apenas arquivar o ano anterior (mantém uploads, escolas e cálculos para histórico)
-            ano_ativo_atual.status = StatusAnoLetivo.ARQUIVADO
-            ano_ativo_atual.arquivado_em = datetime.now()
-            logger.info(f"Ano letivo {ano_ativo_atual.ano} arquivado (dados históricos preservados)")
-        
-        # Criar novo ano
-        novo_ano = AnoLetivo(
-            ano=data.ano,
-            status=StatusAnoLetivo.ATIVO,
-            created_at=datetime.now()
-        )
-        db.add(novo_ano)
-        db.commit()
-        db.refresh(novo_ano)
+        with transaction(db):
+            if ano_ativo_atual:
+                # Apenas arquivar o ano anterior (mantém uploads, escolas e cálculos para histórico)
+                ano_ativo_atual.status = StatusAnoLetivo.ARQUIVADO
+                ano_ativo_atual.arquivado_em = datetime.now()
+                logger.info(f"Ano letivo {ano_ativo_atual.ano} arquivado (dados históricos preservados)")
+            
+            # Criar novo ano
+            novo_ano = AnoLetivo(
+                ano=data.ano,
+                status=StatusAnoLetivo.ATIVO,
+                created_at=datetime.now()
+            )
+            db.add(novo_ano)
+            db.flush()
+            db.refresh(novo_ano)
         
         return novo_ano
     
@@ -67,9 +69,9 @@ class AnoLetivoService:
         if ano.status == StatusAnoLetivo.ARQUIVADO:
             raise AnoLetivoJaArquivadoException(ano.ano)
         
-        ano.status = StatusAnoLetivo.ARQUIVADO
-        ano.arquivado_em = datetime.now()
-        db.commit()
+        with transaction(db):
+            ano.status = StatusAnoLetivo.ARQUIVADO
+            ano.arquivado_em = datetime.now()
         
         return ano
     
@@ -80,8 +82,9 @@ class AnoLetivoService:
             raise AnoLetivoNaoEncontradoException(ano_id)
         
         ano_numero = ano.ano
-        db.delete(ano)  # Cascade deleta tudo relacionado
-        db.commit()
+        
+        with transaction(db):
+            db.delete(ano)  # Cascade deleta tudo relacionado
         
         return ano_numero
 
