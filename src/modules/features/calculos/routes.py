@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from src.core.database import get_db
 from src.core.logging_config import logger
+from src.core.exceptions import DomainException
 from src.modules.schemas.calculos import ResponseCalculos
 from src.modules.features.calculos import CalculoService
 from typing import Optional
@@ -45,7 +46,7 @@ async def calcular_valores(
             ano_letivo_id=resultado['ano_letivo_id']
         )
         
-    except HTTPException:
+    except (HTTPException, DomainException):
         raise
     except Exception as e:
         db.rollback()

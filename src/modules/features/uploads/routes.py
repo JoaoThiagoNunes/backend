@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.orm import Session
 from src.core.database import get_db
 from src.core.logging_config import logger
+from src.core.exceptions import DomainException
 from src.modules.schemas.upload import (
     UploadListItem,
     UploadDetailResponse,
@@ -72,7 +73,7 @@ async def upload_excel(
             aviso=aviso
         )
         
-    except HTTPException:
+    except (HTTPException, DomainException):
         raise
     except Exception as e:
         db.rollback()

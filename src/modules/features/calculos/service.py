@@ -1,9 +1,12 @@
 from sqlalchemy.orm import Session, joinedload
-from fastapi import HTTPException
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import pandas as pd
 from src.core.logging_config import logger
+from src.core.exceptions import (
+    CalculoNaoEncontradoException,
+    EscolaNaoEncontradaException
+)
 from src.modules.features.calculos import CalculosProfin
 from src.modules.features.escolas import Escola
 from src.modules.features.uploads import Upload
@@ -27,10 +30,7 @@ class CalculoService:
         )
 
         if not calculos:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Nenhum cálculo encontrado para o ano letivo {ano_letivo.ano}",
-            )
+            raise CalculoNaoEncontradoException(ano_letivo.ano)
 
         escolas_calculadas: List[EscolaCalculo] = []
         valor_total_geral = 0.0
@@ -64,10 +64,7 @@ class CalculoService:
             )
 
         if not escolas_calculadas:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Nenhum cálculo válido encontrado para o ano letivo {ano_letivo.ano}",
-            )
+            raise CalculoNaoEncontradoException(ano_letivo.ano)
 
         return {
             "ano_letivo": ano_letivo,
@@ -90,10 +87,7 @@ class CalculoService:
         ).all()
         
         if not escolas:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Nenhuma escola encontrada para o ano letivo {ano_letivo.ano}"
-            )
+            raise EscolaNaoEncontradaException(ano_letivo=ano_letivo.ano)
         
         escolas_calculadas = []
         valor_total_geral = 0.0

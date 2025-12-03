@@ -1,8 +1,12 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
 from datetime import datetime
 from typing import List
 from src.core.logging_config import logger
+from src.core.exceptions import (
+    AnoLetivoJaExisteException,
+    AnoLetivoNaoEncontradoException,
+    AnoLetivoJaArquivadoException
+)
 from src.modules.features.anos import AnoLetivo, StatusAnoLetivo
 from src.modules.schemas.ano import AnoLetivoRead, AnoLetivoCreate
 
@@ -29,7 +33,7 @@ class AnoLetivoService:
         # Verificar se ano já existe
         ano_existente = db.query(AnoLetivo).filter(AnoLetivo.ano == data.ano).first()
         if ano_existente:
-            raise HTTPException(status_code=400, detail=f"Ano letivo {data.ano} já existe")
+            raise AnoLetivoJaExisteException(data.ano)
         
         # Arquivar ano ativo atual (se houver) - MANTÉM os dados históricos
         ano_ativo_atual = db.query(AnoLetivo).filter(
@@ -58,10 +62,10 @@ class AnoLetivoService:
     def arquivar_ano_letivo(db: Session, ano_id: int) -> AnoLetivo:
         ano = db.query(AnoLetivo).filter(AnoLetivo.id == ano_id).first()
         if not ano:
-            raise HTTPException(status_code=404, detail="Ano letivo não encontrado")
+            raise AnoLetivoNaoEncontradoException(ano_id)
         
         if ano.status == StatusAnoLetivo.ARQUIVADO:
-            raise HTTPException(status_code=400, detail="Ano letivo já está arquivado")
+            raise AnoLetivoJaArquivadoException(ano.ano)
         
         ano.status = StatusAnoLetivo.ARQUIVADO
         ano.arquivado_em = datetime.now()
@@ -73,7 +77,7 @@ class AnoLetivoService:
     def deletar_ano_letivo(db: Session, ano_id: int) -> int:
         ano = db.query(AnoLetivo).filter(AnoLetivo.id == ano_id).first()
         if not ano:
-            raise HTTPException(status_code=404, detail="Ano letivo não encontrado")
+            raise AnoLetivoNaoEncontradoException(ano_id)
         
         ano_numero = ano.ano
         db.delete(ano)  # Cascade deleta tudo relacionado

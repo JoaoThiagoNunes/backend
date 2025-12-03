@@ -5,7 +5,12 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from src.core.logging_config import logger
-from src.core.exceptions import BaseAPIException, handle_exception
+from src.core.exceptions import (
+    BaseAPIException,
+    DomainException,
+    domain_exception_to_http,
+    handle_exception
+)
 
 
 async def logging_middleware(request: Request, call_next: Callable) -> Response:
@@ -40,6 +45,22 @@ async def error_handler_middleware(request: Request, call_next: Callable) -> Res
     try:
         response = await call_next(request)
         return response
+    
+    except DomainException as e:
+        logger.warning(
+            f"Domain Exception: {e.error_code} - {e.message} "
+            f"[Path: {request.url.path}]"
+        )
+        http_exception = domain_exception_to_http(e)
+        return JSONResponse(
+            status_code=http_exception.status_code,
+            content={
+                "success": False,
+                "error": http_exception.detail,
+                "error_code": e.error_code,
+                "path": str(request.url.path)
+            }
+        )
     
     except BaseAPIException as e:
         # Exceções customizadas do projeto

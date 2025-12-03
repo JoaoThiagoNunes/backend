@@ -1,7 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo  # Python 3.9+
+from zoneinfo import ZoneInfo 
 import traceback
 import logging
 

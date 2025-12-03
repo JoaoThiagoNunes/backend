@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
 from typing import Optional, List, Dict, Any
 from io import BytesIO
 import pandas as pd
 from src.core.logging_config import logger
+from src.core.exceptions import UploadNaoEncontradoException
 from src.modules.features.uploads import Upload
 from src.modules.features.escolas import Escola
 from src.modules.schemas.upload import UploadListItem, UploadDetailInfo, EscolaPlanilhaInfo
@@ -27,7 +27,7 @@ class UploadService:
 
         upload = query.order_by(Upload.upload_date.desc()).first()
         if not upload:
-            raise HTTPException(status_code=404, detail="Nenhum upload encontrado")
+            raise UploadNaoEncontradoException(ano_letivo_id=ano_letivo_id)
 
         return UploadListItem(
             success=True,
@@ -45,7 +45,7 @@ class UploadService:
         _, ano_id = obter_ano_letivo(db, ano_letivo_id)
         upload = db.query(Upload).filter(Upload.ano_letivo_id == ano_id).first()
         if not upload:
-            raise HTTPException(status_code=404, detail="Upload não encontrado")
+            raise UploadNaoEncontradoException(ano_letivo_id=ano_id)
         
         escolas = db.query(Escola).filter(Escola.upload_id == upload.id).all()
         escolas_planilha: List[EscolaPlanilhaInfo] = []
