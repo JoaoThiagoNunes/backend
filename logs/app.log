@@ -19738,3 +19738,49 @@ DETAIL:  Chave (calculo_id, tipo_cota, numero_parcela, tipo_ensino)=(319, GESTAO
 2025-12-02 16:48:56 - profin - INFO - Aplicação iniciada — scheduler ativo.
 2025-12-02 16:48:59 - profin.scheduler - INFO - Scheduler parado
 2025-12-02 16:48:59 - profin - INFO - Aplicação encerrando — scheduler parado.
+2025-12-03 09:31:55 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2025-12-03 09:43:12 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2025-12-03 09:43:21 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2025-12-03 09:43:23 - profin - INFO - Validando configurações da aplicação...
+2025-12-03 09:43:23 - profin - INFO - Configurações do banco de dados validadas
+2025-12-03 09:43:23 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2025-12-03 09:43:23 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2025-12-03 09:43:23 - profin - INFO - Configurações de autenticação validadas
+2025-12-03 09:43:23 - profin - INFO - Todas as configurações validadas com sucesso
+2025-12-03 09:43:23 - profin.scheduler - INFO - Scheduler iniciado com jobs: [<Job (id=396a8750f63d4327ba1ccd8bcb48abc6 name=arquivar_anos_automaticamente)>, <Job (id=3effd26f61ac4aa493c6a70e20341ea2 name=limpar_anos_antigos)>]
+2025-12-03 09:43:23 - profin - INFO - Aplicação iniciada — scheduler ativo.
+2025-12-03 09:43:41 - profin.scheduler - INFO - Scheduler parado
+2025-12-03 09:43:41 - profin - INFO - Aplicação encerrando — scheduler parado.
+2025-12-03 09:43:42 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2025-12-03 09:43:42 - profin - INFO - Validando configurações da aplicação...
+2025-12-03 09:43:42 - profin - INFO - Configurações do banco de dados validadas
+2025-12-03 09:43:42 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2025-12-03 09:43:42 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2025-12-03 09:43:42 - profin - INFO - Configurações de autenticação validadas
+2025-12-03 09:43:42 - profin - INFO - Todas as configurações validadas com sucesso
+2025-12-03 09:43:43 - profin.scheduler - INFO - Scheduler iniciado com jobs: [<Job (id=80a338736db74ddb861620a11ee279e3 name=arquivar_anos_automaticamente)>, <Job (id=bd7f96a739ff442c919ffc577f5431fa name=limpar_anos_antigos)>]
+2025-12-03 09:43:43 - profin - INFO - Aplicação iniciada — scheduler ativo.
+2025-12-03 09:43:43 - profin.scheduler - INFO - Scheduler parado
+2025-12-03 09:43:43 - profin - INFO - Aplicação encerrando — scheduler parado.
+2025-12-03 09:43:44 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2025-12-03 09:43:44 - profin - INFO - Validando configurações da aplicação...
+2025-12-03 09:43:44 - profin - INFO - Configurações do banco de dados validadas
+2025-12-03 09:43:44 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2025-12-03 09:43:44 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2025-12-03 09:43:44 - profin - INFO - Configurações de autenticação validadas
+2025-12-03 09:43:44 - profin - INFO - Todas as configurações validadas com sucesso
+2025-12-03 09:43:44 - profin.scheduler - INFO - Scheduler iniciado com jobs: [<Job (id=66b595ed8aff4198a6aaed3c88e7a540 name=arquivar_anos_automaticamente)>, <Job (id=3b2e86966e9741b78b1336448460d790 name=limpar_anos_antigos)>]
+2025-12-03 09:43:44 - profin - INFO - Aplicação iniciada — scheduler ativo.
+2025-12-03 09:44:04 - profin.scheduler - INFO - Scheduler parado
+2025-12-03 09:44:04 - profin - INFO - Aplicação encerrando — scheduler parado.
+2025-12-03 09:44:05 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2025-12-03 09:44:06 - profin - INFO - Validando configurações da aplicação...
+2025-12-03 09:44:06 - profin - INFO - Configurações do banco de dados validadas
+2025-12-03 09:44:06 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2025-12-03 09:44:06 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2025-12-03 09:44:06 - profin - INFO - Configurações de autenticação validadas
+2025-12-03 09:44:06 - profin - INFO - Todas as configurações validadas com sucesso
+2025-12-03 09:44:06 - profin.scheduler - INFO - Scheduler iniciado com jobs: [<Job (id=a7ff52f75f4a49358cdd8f87ffe6e574 name=arquivar_anos_automaticamente)>, <Job (id=6a5a7060c13340a1b305cdee24c987cb name=limpar_anos_antigos)>]
+2025-12-03 09:44:06 - profin - INFO - Aplicação iniciada — scheduler ativo.
+2025-12-03 09:44:08 - profin.scheduler - INFO - Scheduler parado
+2025-12-03 09:44:08 - profin - INFO - Aplicação encerrando — scheduler parado.
