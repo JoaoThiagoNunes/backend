@@ -1,6 +1,6 @@
 import pandas as pd
 from typing import Dict, Any
-from src.core.utils import obter_quantidade, validar_indigena_e_quilombola
+from src.modules.shared.utils import obter_quantidade, validar_indigena_e_quilombola
 
 
 def calcular_profin_gestao(row: pd.Series) -> float:

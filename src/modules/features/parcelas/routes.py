@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import Dict, List, Optional
 from src.core.database import get_db
 from src.core.logging_config import logger
-from src.core.utils import obter_ano_letivo
+from src.modules.features.anos.utils import obter_ano_letivo
 from src.modules.features.parcelas.utils import (
     calcular_porcentagens_ensino,
     dividir_cota_em_parcelas_por_ensino

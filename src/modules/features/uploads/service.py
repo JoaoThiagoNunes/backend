@@ -8,8 +8,8 @@ from src.core.exceptions import UploadNaoEncontradoException
 from src.modules.features.uploads.repository import UploadRepository
 from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.schemas.upload import UploadListItem, UploadDetailInfo, EscolaPlanilhaInfo
-from src.core.utils import (
-    obter_ano_letivo,
+from src.modules.features.anos.utils import obter_ano_letivo
+from src.modules.shared.utils import (
     obter_texto,
     obter_quantidade,
     validar_indigena_e_quilombola,

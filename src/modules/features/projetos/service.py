@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from src.core.database import transaction
 from src.core.logging_config import logger
 from src.core.exceptions import NotFoundException, BadRequestException
-from src.core.utils import obter_ano_letivo
+from src.modules.features.anos.utils import obter_ano_letivo
 from src.modules.features.escolas import Escola
 from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.features.calculos import CalculosProfin

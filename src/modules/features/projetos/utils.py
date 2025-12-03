@@ -1,6 +1,6 @@
 import pandas as pd
 from src.modules.features.projetos.constants import COLUNAS_PROJETOS_APROVADOS
-from src.core.utils import obter_quantidade_por_nome
+from src.modules.shared.utils import obter_quantidade_por_nome
 
 
 def obter_quantidade_projetos_aprovados(row: pd.Series) -> int:

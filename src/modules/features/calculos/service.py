@@ -4,17 +4,11 @@ from datetime import datetime
 import pandas as pd
 from src.core.logging_config import logger
 from src.core.database import transaction
-from src.core.exceptions import (
-    CalculoNaoEncontradoException,
-    EscolaNaoEncontradaException
-)
-from src.modules.features.calculos import CalculosProfin
+from src.core.exceptions import (CalculoNaoEncontradoException, EscolaNaoEncontradaException)
 from src.modules.features.calculos.repository import CalculoRepository
-from src.modules.features.escolas import Escola
 from src.modules.features.escolas.repository import EscolaRepository
-from src.modules.features.uploads import Upload
 from src.modules.schemas.calculos import EscolaCalculo
-from src.core.utils import obter_ano_letivo
+from src.modules.features.anos.utils import obter_ano_letivo
 from src.modules.features.calculos.utils import calcular_todas_cotas
 
 
