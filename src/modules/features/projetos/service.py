@@ -1,15 +1,17 @@
 from typing import Optional, List, Dict, Set
 from datetime import datetime
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from src.core.database import transaction
 from src.core.logging_config import logger
-from src.core.exceptions import EscolaNaoEncontradaException, NotFoundException, BadRequestException
+from src.core.exceptions import NotFoundException, BadRequestException
 from src.core.utils import obter_ano_letivo
 from src.modules.features.escolas import Escola
+from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.features.calculos import CalculosProfin
-from src.modules.features.uploads import Upload
+from src.modules.features.calculos.repository import CalculoRepository
 from src.modules.features.projetos.constants import VALOR_PROJETO_UNITARIO
 from src.modules.features.projetos import LiberacoesProjeto
+from src.modules.features.projetos.repository import ProjetoRepository
 from src.modules.schemas.parcelas import RepasseResumoResponse, RepasseFolhaInfo, EscolaPrevisaoInfo
 from src.modules.schemas.projetos import LiberacaoProjetoInfo
 
@@ -72,15 +74,11 @@ class ProjetoService:
     ) -> RepasseResumoResponse:
         _, ano_id = obter_ano_letivo(db, ano_letivo_id)
 
-        escolas = (
-            db.query(Escola)
-            .join(Upload, Escola.upload_id == Upload.id)
-            .filter(Upload.ano_letivo_id == ano_id)
-            .options(
-                joinedload(Escola.calculos),
-                joinedload(Escola.liberacoes_projetos)
-            )
-            .all()
+        escola_repo = EscolaRepository(db)
+        escolas = escola_repo.find_by_ano_letivo_with_relations(
+            ano_id,
+            load_calculos=True,
+            load_liberacoes_projetos=True
         )
 
         if not escolas:
@@ -216,62 +214,62 @@ class ProjetoService:
     ) -> List[LiberacaoProjetoInfo]:
         escola_ids_unicos = list(dict.fromkeys(escola_ids))
 
-        escolas = (
-            db.query(Escola)
-            .options(joinedload(Escola.calculos))
-            .filter(Escola.id.in_(escola_ids_unicos))
-            .all()
-        )
+        escola_repo = EscolaRepository(db)
+        escolas = escola_repo.find_by_ids(escola_ids_unicos)
 
         if len(escolas) != len(escola_ids_unicos):
             ids_encontrados = {escola.id for escola in escolas}
             ids_invalidos = [eid for eid in escola_ids_unicos if eid not in ids_encontrados]
+            from src.core.exceptions import EscolaNaoEncontradaException
             raise EscolaNaoEncontradaException(escola_id=ids_invalidos[0] if ids_invalidos else None)
 
-        liberacoes_existentes = (
-            db.query(LiberacoesProjeto)
-            .filter(LiberacoesProjeto.escola_id.in_(escola_ids_unicos))
-            .all()
-        )
-
-        mapa_liberacoes: Dict[int, LiberacoesProjeto] = {
-            liberacao.escola_id: liberacao for liberacao in liberacoes_existentes
-        }
+        projeto_repo = ProjetoRepository(db)
+        mapa_liberacoes = projeto_repo.create_map_by_escola_id(escola_ids_unicos)
 
         agora = datetime.now()
         liberacoes_resultado: List[LiberacoesProjeto] = []
 
+        # Carregar escolas com cálculos
+        escola_repo = EscolaRepository(db)
+        escolas_com_calculos = escola_repo.find_by_ids(escola_ids_unicos)
+        calculo_repo = CalculoRepository(db)
+
         with transaction(db):
-            for escola in escolas:
+            for escola in escolas_com_calculos:
+                # Buscar cálculo da escola
+                calculo = calculo_repo.find_by_escola_id(escola.id)
+                
                 liberacao = mapa_liberacoes.get(escola.id)
-                valor_projetos_calculado = ProjetoService.calcular_valor_projetos_aprovados(escola, escola.calculos)
+                valor_projetos_calculado = ProjetoService.calcular_valor_projetos_aprovados(escola, calculo)
 
                 if liberacao:
-                    liberacao.liberada = True
-                    liberacao.numero_folha = numero_folha
-                    liberacao.data_liberacao = agora
-                    liberacao.valor_projetos_aprovados = valor_projetos_calculado
+                    projeto_repo.update(
+                        liberacao,
+                        liberada=True,
+                        numero_folha=numero_folha,
+                        data_liberacao=agora,
+                        valor_projetos_aprovados=valor_projetos_calculado
+                    )
                 else:
-                    liberacao = LiberacoesProjeto(
+                    liberacao = projeto_repo.create(
                         escola_id=escola.id,
                         liberada=True,
                         numero_folha=numero_folha,
                         data_liberacao=agora,
-                        valor_projetos_aprovados=valor_projetos_calculado,
+                        valor_projetos_aprovados=valor_projetos_calculado
                     )
-                    db.add(liberacao)
                     mapa_liberacoes[escola.id] = liberacao
 
                 liberacao.escola = escola
                 liberacoes_resultado.append(liberacao)
 
+        # Buscar liberações atualizadas com relacionamentos
         liberacoes_ids = [lib.id for lib in liberacoes_resultado]
-        liberacoes_atualizadas = (
-            db.query(LiberacoesProjeto)
-            .options(joinedload(LiberacoesProjeto.escola))
-            .filter(LiberacoesProjeto.id.in_(liberacoes_ids))
-            .all()
-        )
+        liberacoes_atualizadas = []
+        for lib_id in liberacoes_ids:
+            lib = projeto_repo.find_by_id(lib_id)
+            if lib:
+                liberacoes_atualizadas.append(lib)
 
         liberacoes_map: Dict[int, LiberacoesProjeto] = {
             liberacao.id: liberacao for liberacao in liberacoes_atualizadas
@@ -290,32 +288,12 @@ class ProjetoService:
         escola_id: Optional[int] = None,
         ano_letivo_id: Optional[int] = None,
     ) -> List[LiberacaoProjetoInfo]:
-        ano_id: Optional[int] = None
-        if ano_letivo_id is not None:
-            _, ano_id = obter_ano_letivo(db, ano_letivo_id)
-
-        query = db.query(LiberacoesProjeto).join(Escola)
-
-        if ano_id is not None:
-            query = query.join(Upload, Escola.upload_id == Upload.id)
-            query = query.filter(Upload.ano_letivo_id == ano_id)
-
-        if numero_folha is not None:
-            query = query.filter(LiberacoesProjeto.numero_folha == numero_folha)
-
-        if liberada is not None:
-            query = query.filter(LiberacoesProjeto.liberada == liberada)
-
-        if escola_id is not None:
-            query = query.filter(LiberacoesProjeto.escola_id == escola_id)
-
-        liberacoes = (
-            query.options(joinedload(LiberacoesProjeto.escola))
-            .order_by(
-                LiberacoesProjeto.numero_folha.nulls_last(),
-                Escola.nome_uex,
-            )
-            .all()
+        projeto_repo = ProjetoRepository(db)
+        liberacoes = projeto_repo.find_all_with_filters(
+            numero_folha=numero_folha,
+            liberada=liberada,
+            escola_id=escola_id,
+            ano_letivo_id=ano_letivo_id
         )
 
         return [ProjetoService.mapear_liberacao_projeto(l) for l in liberacoes]
@@ -328,33 +306,34 @@ class ProjetoService:
         liberada: Optional[bool] = None,
         data_liberacao: Optional[datetime] = None,
     ) -> LiberacaoProjetoInfo:
-        liberacao = (
-            db.query(LiberacoesProjeto)
-            .options(joinedload(LiberacoesProjeto.escola))
-            .filter(LiberacoesProjeto.id == liberacao_id)
-            .first()
-        )
+        projeto_repo = ProjetoRepository(db)
+        liberacao = projeto_repo.find_by_id(liberacao_id)
 
         if not liberacao:
             raise NotFoundException("Liberação de projetos não encontrada")
 
+        update_data = {}
+        
+        if numero_folha is not None:
+            if numero_folha <= 0:
+                raise BadRequestException("numero_folha deve ser maior que 0")
+            update_data["numero_folha"] = numero_folha
+
+        if liberada is not None:
+            update_data["liberada"] = liberada
+
+            if liberada and data_liberacao is None and liberacao.data_liberacao is None:
+                update_data["data_liberacao"] = datetime.now()
+
+            if not liberada and data_liberacao is None:
+                update_data["data_liberacao"] = None
+
+        if data_liberacao is not None:
+            update_data["data_liberacao"] = data_liberacao
+
         with transaction(db):
-            if numero_folha is not None:
-                if numero_folha <= 0:
-                    raise BadRequestException("numero_folha deve ser maior que 0")
-                liberacao.numero_folha = numero_folha
-
-            if liberada is not None:
-                liberacao.liberada = liberada
-
-                if liberada and data_liberacao is None and liberacao.data_liberacao is None:
-                    liberacao.data_liberacao = datetime.now()
-
-                if not liberada and data_liberacao is None:
-                    liberacao.data_liberacao = None
-
-            if data_liberacao is not None:
-                liberacao.data_liberacao = data_liberacao
+            if update_data:
+                projeto_repo.update(liberacao, **update_data)
 
         db.refresh(liberacao)
         return ProjetoService.mapear_liberacao_projeto(liberacao)
@@ -364,20 +343,19 @@ class ProjetoService:
         db: Session,
         liberacao_id: int
     ) -> LiberacaoProjetoInfo:
-        liberacao = (
-            db.query(LiberacoesProjeto)
-            .options(joinedload(LiberacoesProjeto.escola))
-            .filter(LiberacoesProjeto.id == liberacao_id)
-            .first()
-        )
+        projeto_repo = ProjetoRepository(db)
+        liberacao = projeto_repo.find_by_id(liberacao_id)
 
         if not liberacao:
             raise NotFoundException("Liberação de projetos não encontrada")
 
         with transaction(db):
-            liberacao.liberada = False
-            liberacao.numero_folha = None
-            liberacao.data_liberacao = None
+            projeto_repo.update(
+                liberacao,
+                liberada=False,
+                numero_folha=None,
+                data_liberacao=None
+            )
 
         db.refresh(liberacao)
         return ProjetoService.mapear_liberacao_projeto(liberacao)

@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import pandas as pd
@@ -9,7 +9,9 @@ from src.core.exceptions import (
     EscolaNaoEncontradaException
 )
 from src.modules.features.calculos import CalculosProfin
+from src.modules.features.calculos.repository import CalculoRepository
 from src.modules.features.escolas import Escola
+from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.features.uploads import Upload
 from src.modules.schemas.calculos import EscolaCalculo
 from src.core.utils import obter_ano_letivo
@@ -21,14 +23,8 @@ class CalculoService:
     def listar_calculos(db: Session, ano_letivo_id: Optional[int] = None) -> Dict[str, Any]:
         ano_letivo, ano_id = obter_ano_letivo(db, ano_letivo_id)
 
-        calculos = (
-            db.query(CalculosProfin)
-            .join(Escola)
-            .join(Upload)
-            .options(joinedload(CalculosProfin.escola))
-            .filter(Upload.ano_letivo_id == ano_id)
-            .all()
-        )
+        calculo_repo = CalculoRepository(db)
+        calculos = calculo_repo.find_by_ano_letivo(ano_id)
 
         if not calculos:
             raise CalculoNaoEncontradoException(ano_letivo.ano)
@@ -83,13 +79,13 @@ class CalculoService:
         logger.info(f"CALCULANDO VALORES - ANO LETIVO: {ano_letivo.ano}")
         logger.info("="*60)
         
-        escolas = db.query(Escola).join(Upload).filter(
-            Upload.ano_letivo_id == ano_letivo_id
-        ).all()
+        escola_repo = EscolaRepository(db)
+        escolas = escola_repo.find_by_ano_letivo(ano_letivo_id)
         
         if not escolas:
             raise EscolaNaoEncontradaException(ano_letivo=ano_letivo.ano)
         
+        calculo_repo = CalculoRepository(db)
         escolas_calculadas = []
         valor_total_geral = 0.0
         upload_id = escolas[0].upload_id if escolas else None
@@ -120,26 +116,27 @@ class CalculoService:
                 row_series = pd.Series(row_data)
                 cotas = calcular_todas_cotas(row_series)
                 
-                calculo_obj = db.query(CalculosProfin).filter(
-                    CalculosProfin.escola_id == escola_obj.id
-                ).first()
+                calculo_obj = calculo_repo.find_by_escola_id(escola_obj.id)
                 
                 if calculo_obj:
                     # Atualizar cálculo existente
-                    calculo_obj.profin_gestao = cotas["profin_gestao"]
-                    calculo_obj.profin_projeto = cotas["profin_projeto"]
-                    calculo_obj.profin_kit_escolar = cotas["profin_kit_escolar"]
-                    calculo_obj.profin_uniforme = cotas["profin_uniforme"]
-                    calculo_obj.profin_merenda = cotas["profin_merenda"]
-                    calculo_obj.profin_sala_recurso = cotas["profin_sala_recurso"]
-                    calculo_obj.profin_permanente = cotas["profin_permanente"]
-                    calculo_obj.profin_climatizacao = cotas["profin_climatizacao"]
-                    calculo_obj.profin_preuni = cotas["profin_preuni"]
-                    calculo_obj.valor_total = cotas["valor_total"]
-                    calculo_obj.calculated_at = datetime.now()
+                    calculo_repo.update(
+                        calculo_obj,
+                        profin_gestao=cotas["profin_gestao"],
+                        profin_projeto=cotas["profin_projeto"],
+                        profin_kit_escolar=cotas["profin_kit_escolar"],
+                        profin_uniforme=cotas["profin_uniforme"],
+                        profin_merenda=cotas["profin_merenda"],
+                        profin_sala_recurso=cotas["profin_sala_recurso"],
+                        profin_permanente=cotas["profin_permanente"],
+                        profin_climatizacao=cotas["profin_climatizacao"],
+                        profin_preuni=cotas["profin_preuni"],
+                        valor_total=cotas["valor_total"],
+                        calculated_at=datetime.now()
+                    )
                 else:
                     # Criar novo cálculo
-                    calculo_obj = CalculosProfin(
+                    calculo_obj = calculo_repo.create(
                         escola_id=escola_obj.id,
                         profin_gestao=cotas["profin_gestao"],
                         profin_projeto=cotas["profin_projeto"],
@@ -153,7 +150,6 @@ class CalculoService:
                         valor_total=cotas["valor_total"],
                         calculated_at=datetime.now()
                     )
-                    db.add(calculo_obj)
                 
                 escola_data = {
                     "id": escola_obj.id,

@@ -5,8 +5,8 @@ import pandas as pd
 from src.core.logging_config import logger
 from src.core.database import transaction
 from src.core.exceptions import UploadNaoEncontradoException
-from src.modules.features.uploads import Upload
-from src.modules.features.escolas import Escola
+from src.modules.features.uploads.repository import UploadRepository
+from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.schemas.upload import UploadListItem, UploadDetailInfo, EscolaPlanilhaInfo
 from src.core.utils import (
     obter_ano_letivo,
@@ -21,12 +21,9 @@ from src.modules.features.projetos.utils import obter_quantidade_projetos_aprova
 class UploadService:
     @staticmethod
     def obter_upload_unico(db: Session, ano_letivo_id: Optional[int] = None) -> UploadListItem:
-        query = db.query(Upload)
+        repo = UploadRepository(db)
+        upload = repo.find_latest(ano_letivo_id)
         
-        if ano_letivo_id:
-            query = query.filter(Upload.ano_letivo_id == ano_letivo_id)
-
-        upload = query.order_by(Upload.upload_date.desc()).first()
         if not upload:
             raise UploadNaoEncontradoException(ano_letivo_id=ano_letivo_id)
 
@@ -44,11 +41,14 @@ class UploadService:
     @staticmethod
     def obter_upload_detalhado(db: Session, ano_letivo_id: Optional[int] = None) -> Dict[str, Any]:
         _, ano_id = obter_ano_letivo(db, ano_letivo_id)
-        upload = db.query(Upload).filter(Upload.ano_letivo_id == ano_id).first()
+        
+        upload_repo = UploadRepository(db)
+        upload = upload_repo.find_by_ano_letivo(ano_id)
         if not upload:
             raise UploadNaoEncontradoException(ano_letivo_id=ano_id)
         
-        escolas = db.query(Escola).filter(Escola.upload_id == upload.id).all()
+        escola_repo = EscolaRepository(db)
+        escolas = escola_repo.find_by_upload_id(upload.id)
         escolas_planilha: List[EscolaPlanilhaInfo] = []
 
         for escola in escolas:
@@ -124,11 +124,9 @@ class UploadService:
         db.refresh(upload)
         
         # Processar escolas
-        escolas_existentes = db.query(Escola).filter(Escola.upload_id == upload.id).all()
-        mapa_escolas_existentes = {
-            (e.nome_uex, e.dre): e 
-            for e in escolas_existentes
-        }
+        escola_repo = EscolaRepository(db)
+        mapa_escolas_existentes = escola_repo.create_map_by_nome_dre(upload.id)
+        escolas_existentes = list(mapa_escolas_existentes.values())
         
         logger.info(f"Upload {'atualizado' if escolas_existentes else 'criado'} com ID: {upload.id}")
         logger.info(f"Escolas existentes no upload: {len(escolas_existentes)}")
@@ -156,63 +154,65 @@ class UploadService:
                     if (idx + 1) % 50 == 0 or idx == 0:
                         logger.debug(f"[{idx + 1}/{len(df)}] Processando: {nome_escola} (DRE: {dre_val or 'N/A'})")
                     
-                    escola_existente = mapa_escolas_existentes.get(chave_escola)
-                    
-                    if escola_existente:
-                        # Atualizar escola existente
-                        escola_existente.total_alunos = obter_quantidade(row, "TOTAL")
-                        escola_existente.cnpj = obter_texto(row, "CNPJ", None)
-                        escola_existente.fundamental_inicial = obter_quantidade(row, "FUNDAMENTAL INICIAL")
-                        escola_existente.fundamental_final = obter_quantidade(row, "FUNDAMENTAL FINAL")
-                        escola_existente.fundamental_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
-                        escola_existente.profissionalizante = obter_quantidade(row, "PROFISSIONALIZANTE")
-                        escola_existente.alternancia = obter_quantidade(row, "ALTERNÂNCIA")
-                        escola_existente.ensino_medio_integral = obter_quantidade(row, "ENSINO MÉDIO INTEGRAL")
-                        escola_existente.ensino_medio_regular = obter_quantidade(row, "ENSINO MÉDIO REGULAR")
-                        escola_existente.especial_fund_regular = obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR")
-                        escola_existente.especial_fund_integral = obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL")
-                        escola_existente.especial_medio_parcial = obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL")
-                        escola_existente.especial_medio_integral = obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL")
-                        escola_existente.sala_recurso = obter_quantidade(row, "SALA DE RECURSO")
-                        escola_existente.climatizacao = obter_quantidade(row, "CLIMATIZAÇÃO")
-                        escola_existente.preuni = obter_quantidade(row, "PREUNI")
-                        escola_existente.quantidade_projetos_aprovados = obter_quantidade_projetos_aprovados(row)
-                        escola_existente.repasse_por_area = obter_quantidade(row, "REPASSE POR AREA")
-                        escola_existente.indigena_quilombola = validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
+                escola_existente = mapa_escolas_existentes.get(chave_escola)
+                
+                if escola_existente:
+                    # Atualizar escola existente
+                    escola_repo.update(
+                        escola_existente,
+                        total_alunos=obter_quantidade(row, "TOTAL"),
+                        cnpj=obter_texto(row, "CNPJ", None),
+                        fundamental_inicial=obter_quantidade(row, "FUNDAMENTAL INICIAL"),
+                        fundamental_final=obter_quantidade(row, "FUNDAMENTAL FINAL"),
+                        fundamental_integral=obter_quantidade(row, "FUNDAMENTAL INTEGRAL"),
+                        profissionalizante=obter_quantidade(row, "PROFISSIONALIZANTE"),
+                        alternancia=obter_quantidade(row, "ALTERNÂNCIA"),
+                        ensino_medio_integral=obter_quantidade(row, "ENSINO MÉDIO INTEGRAL"),
+                        ensino_medio_regular=obter_quantidade(row, "ENSINO MÉDIO REGULAR"),
+                        especial_fund_regular=obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR"),
+                        especial_fund_integral=obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL"),
+                        especial_medio_parcial=obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL"),
+                        especial_medio_integral=obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL"),
+                        sala_recurso=obter_quantidade(row, "SALA DE RECURSO"),
+                        climatizacao=obter_quantidade(row, "CLIMATIZAÇÃO"),
+                        preuni=obter_quantidade(row, "PREUNI"),
+                        quantidade_projetos_aprovados=obter_quantidade_projetos_aprovados(row),
+                        repasse_por_area=obter_quantidade(row, "REPASSE POR AREA"),
+                        indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
+                    )
 
-                        escolas_atualizadas += 1
-                        escolas_processadas.add(escola_existente.id)
-                    else:
-                        # Criar nova escola
-                        escola_obj = Escola(
-                            upload_id=upload.id,
-                            nome_uex=nome_escola,
-                            dre=dre_val,
-                            cnpj=obter_texto(row, "CNPJ", None),
-                            total_alunos=obter_quantidade(row, "TOTAL"),
-                            fundamental_inicial=obter_quantidade(row, "FUNDAMENTAL INICIAL"),
-                            fundamental_final=obter_quantidade(row, "FUNDAMENTAL FINAL"),
-                            fundamental_integral=obter_quantidade(row, "FUNDAMENTAL INTEGRAL"),
-                            profissionalizante=obter_quantidade(row, "PROFISSIONALIZANTE"),
-                            alternancia=obter_quantidade(row, "ALTERNÂNCIA"),
-                            ensino_medio_integral=obter_quantidade(row, "ENSINO MÉDIO INTEGRAL"),
-                            ensino_medio_regular=obter_quantidade(row, "ENSINO MÉDIO REGULAR"),
-                            especial_fund_regular=obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR"),
-                            especial_fund_integral=obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL"),
-                            especial_medio_parcial=obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL"),
-                            especial_medio_integral=obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL"),
-                            sala_recurso=obter_quantidade(row, "SALA DE RECURSO"),
-                            climatizacao=obter_quantidade(row, "CLIMATIZAÇÃO"),
-                            preuni=obter_quantidade(row, "PREUNI"),
-                            quantidade_projetos_aprovados=obter_quantidade_projetos_aprovados(row),
-                            repasse_por_area=obter_quantidade(row, "REPASSE POR AREA"),
-                            indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
-                        )
-                        
-                        db.add(escola_obj)
-                        db.flush()
-                        escolas_criadas += 1
-                        escolas_processadas.add(escola_obj.id)
+                    escolas_atualizadas += 1
+                    escolas_processadas.add(escola_existente.id)
+                else:
+                    # Criar nova escola
+                    escola_obj = escola_repo.create(
+                        upload_id=upload.id,
+                        nome_uex=nome_escola,
+                        dre=dre_val,
+                        cnpj=obter_texto(row, "CNPJ", None),
+                        total_alunos=obter_quantidade(row, "TOTAL"),
+                        fundamental_inicial=obter_quantidade(row, "FUNDAMENTAL INICIAL"),
+                        fundamental_final=obter_quantidade(row, "FUNDAMENTAL FINAL"),
+                        fundamental_integral=obter_quantidade(row, "FUNDAMENTAL INTEGRAL"),
+                        profissionalizante=obter_quantidade(row, "PROFISSIONALIZANTE"),
+                        alternancia=obter_quantidade(row, "ALTERNÂNCIA"),
+                        ensino_medio_integral=obter_quantidade(row, "ENSINO MÉDIO INTEGRAL"),
+                        ensino_medio_regular=obter_quantidade(row, "ENSINO MÉDIO REGULAR"),
+                        especial_fund_regular=obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR"),
+                        especial_fund_integral=obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL"),
+                        especial_medio_parcial=obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL"),
+                        especial_medio_integral=obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL"),
+                        sala_recurso=obter_quantidade(row, "SALA DE RECURSO"),
+                        climatizacao=obter_quantidade(row, "CLIMATIZAÇÃO"),
+                        preuni=obter_quantidade(row, "PREUNI"),
+                        quantidade_projetos_aprovados=obter_quantidade_projetos_aprovados(row),
+                        repasse_por_area=obter_quantidade(row, "REPASSE POR AREA"),
+                        indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
+                    )
+                    
+                    escolas_criadas += 1
+                    escolas_processadas.add(escola_obj.id)
+                    mapa_escolas_existentes[chave_escola] = escola_obj
                     
                     escolas_salvas += 1
                     
@@ -240,18 +240,18 @@ class UploadService:
             escolas_removidas_count = 0
             if escolas_para_deletar:
                 for escola_para_deletar in escolas_para_deletar:
-                    db.delete(escola_para_deletar)
+                    escola_repo.delete(escola_para_deletar)
                     escolas_removidas_count += 1
                 logger.info(f"Removidas {escolas_removidas_count} escola(s) que não estão mais no arquivo")
             
-            upload.total_escolas = escolas_salvas
+            upload_repo.update(upload, total_escolas=escolas_salvas)
         
         if escolas_atualizadas > 0:
             logger.info(f"{escolas_atualizadas} escola(s) atualizada(s) (mantendo IDs)")
         if escolas_criadas > 0:
             logger.info(f"{escolas_criadas} escola(s) criada(s) (novos IDs)")
         
-        total_no_banco = db.query(Escola).filter(Escola.upload_id == upload.id).count()
+        total_no_banco = escola_repo.count_by_upload_id(upload.id)
         
         logger.info("="*60)
         logger.info("UPLOAD CONCLUÍDO")
