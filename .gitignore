@@ -1,8 +1,21 @@
-.env
+# Python cache
 __pycache__/
-*.pyc
-*.pyo
-*.db
-venv/
+*.py[cod]
+*$py.class
+*.so
+
+# IDEs
 .vscode/
-*.md
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Ambiente virtual
+venv/
+env/
+ENV/

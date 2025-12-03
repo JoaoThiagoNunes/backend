@@ -8,8 +8,8 @@ from src.core.exceptions import (CalculoNaoEncontradoException, EscolaNaoEncontr
 from src.modules.features.calculos.repository import CalculoRepository
 from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.schemas.calculos import EscolaCalculo
-from src.modules.features.anos.utils import obter_ano_letivo
-from src.modules.features.calculos.utils import calcular_todas_cotas
+from src.modules.features.anos import obter_ano_letivo
+from src.modules.features.calculos import calcular_todas_cotas
 
 
 class CalculoService:

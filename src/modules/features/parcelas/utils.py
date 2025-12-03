@@ -1,28 +1,29 @@
 from typing import Tuple, Dict
 from src.modules.features.escolas import Escola
+from src.modules.shared.constants import (
+    PESO_FUNDAMENTAL_INICIAL,
+    PESO_FUNDAMENTAL_FINAL,
+    PESO_FUNDAMENTAL_INTEGRAL,
+    PESO_ESPECIAL_FUNDAMENTAL_REGULAR,
+    PESO_ESPECIAL_FUNDAMENTAL_INTEGRAL,
+    PESO_PROFISSIONALIZANTE,
+    PESO_ALTERNANCIA,
+    PESO_MEDIO_INTEGRAL,
+    PESO_MEDIO_REGULAR,
+    PESO_ESPECIAL_MEDIO_PARCIAL,
+    PESO_ESPECIAL_MEDIO_INTEGRAL,
+    PORCENTAGEM_TOTAL,
+)
 
 def calcular_porcentagens_ensino(escola: Escola) -> Tuple[float, float]:
-    # Pesos (multiplicadores) para cada modalidade
-    PESO_FUND_INICIAL = 1.0
-    PESO_FUND_FINAL = 1.10
-    PESO_FUND_INTEGRAL = 1.40
-    PESO_ESP_FUND_REGULAR = 1.0
-    PESO_ESP_FUND_INTEGRAL = 1.40
-    
-    PESO_PROFISSIONALIZANTE = 1.30
-    PESO_ALTERNANCIA = 1.40
-    PESO_MEDIO_INTEGRAL = 1.40
-    PESO_MEDIO_REGULAR = 1.25
-    PESO_ESP_MEDIO_PARCIAL = 1.25
-    PESO_ESP_MEDIO_INTEGRAL = 1.40
     
     # Calcular valor ponderado de FUNDAMENTAL (numerador)
     valor_fundamental = (
-        (escola.fundamental_inicial * PESO_FUND_INICIAL) +
-        (escola.fundamental_final * PESO_FUND_FINAL) +
-        (escola.fundamental_integral * PESO_FUND_INTEGRAL) +
-        (escola.especial_fund_regular * PESO_ESP_FUND_REGULAR) +
-        (escola.especial_fund_integral * PESO_ESP_FUND_INTEGRAL)
+        (escola.fundamental_inicial * PESO_FUNDAMENTAL_INICIAL) +
+        (escola.fundamental_final * PESO_FUNDAMENTAL_FINAL) +
+        (escola.fundamental_integral * PESO_FUNDAMENTAL_INTEGRAL) +
+        (escola.especial_fund_regular * PESO_ESPECIAL_FUNDAMENTAL_REGULAR) +
+        (escola.especial_fund_integral * PESO_ESPECIAL_FUNDAMENTAL_INTEGRAL)
     )
     
     # Calcular valor ponderado de MÉDIO
@@ -31,8 +32,8 @@ def calcular_porcentagens_ensino(escola: Escola) -> Tuple[float, float]:
         (escola.alternancia * PESO_ALTERNANCIA) +
         (escola.ensino_medio_integral * PESO_MEDIO_INTEGRAL) +
         (escola.ensino_medio_regular * PESO_MEDIO_REGULAR) +
-        (escola.especial_medio_parcial * PESO_ESP_MEDIO_PARCIAL) +
-        (escola.especial_medio_integral * PESO_ESP_MEDIO_INTEGRAL)
+        (escola.especial_medio_parcial * PESO_ESPECIAL_MEDIO_PARCIAL) +
+        (escola.especial_medio_integral * PESO_ESPECIAL_MEDIO_INTEGRAL)
     )
     
     # Denominador = soma de TODOS (fundamental + médio) com pesos
@@ -43,10 +44,10 @@ def calcular_porcentagens_ensino(escola: Escola) -> Tuple[float, float]:
         return (0.0, 0.0)
     
     # Calcular porcentagem de FUNDAMENTAL
-    pct_fundamental = (valor_fundamental / denominador) * 100.0
+    pct_fundamental = (valor_fundamental / denominador) * PORCENTAGEM_TOTAL
     
     # MÉDIO = o que falta para completar 100%
-    pct_medio = 100.0 - pct_fundamental
+    pct_medio = PORCENTAGEM_TOTAL - pct_fundamental
     
     return (round(pct_fundamental, 2), round(pct_medio, 2))
 

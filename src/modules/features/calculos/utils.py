@@ -1,11 +1,44 @@
 import pandas as pd
 from typing import Dict, Any
 from src.modules.shared.utils import obter_quantidade, validar_indigena_e_quilombola
+from src.modules.shared.constants import (
+    PESO_FUNDAMENTAL_INICIAL,
+    PESO_FUNDAMENTAL_FINAL,
+    PESO_FUNDAMENTAL_INTEGRAL,
+    PESO_PROFISSIONALIZANTE,
+    PESO_ALTERNANCIA,
+    PESO_MEDIO_INTEGRAL,
+    PESO_MEDIO_REGULAR,
+    PESO_ESPECIAL_FUNDAMENTAL_REGULAR,
+    PESO_ESPECIAL_FUNDAMENTAL_INTEGRAL,
+    PESO_ESPECIAL_MEDIO_PARCIAL,
+    PESO_ESPECIAL_MEDIO_INTEGRAL,
+    MULTIPLICADOR_ALTERNANCIA,
+    MULTIPLICADOR_ESPECIAL,
+    VALOR_FIXO_GESTAO,
+    MULTIPLICADOR_GESTAO,
+    BONUS_REPASSE_POR_AREA_VALORES,
+    LIMITE_ALUNOS_PROJETO_1,
+    LIMITE_ALUNOS_PROJETO_2,
+    MULTIPLICADOR_PROJETO_INTEGRAL,
+    NUM_PROJETOS_ATE_500,
+    NUM_PROJETOS_ATE_1000,
+    NUM_PROJETOS_ACIMA_1000,
+    VALOR_UNITARIO_KIT_ESCOLAR,
+    VALOR_UNITARIO_UNIFORME,
+    VALOR_PER_CAPITA_MERENDA,
+    MULTIPLICADOR_MERENDA_INTEGRAL,
+    MULTIPLICADOR_MERENDA_ALTERNANCIA,
+    MULTIPLICADOR_INDIGENA_QUILOMBOLA,
+    VALOR_FIXO_SALA_RECURSO,
+    VALOR_UNITARIO_SALA_RECURSO,
+    VALOR_UNITARIO_CLIMATIZACAO,
+    VALOR_UNITARIO_PREUNI,
+    VALOR_UNITARIO_PERMANENTE,
+)
 
 
 def calcular_profin_gestao(row: pd.Series) -> float:
-    valor_fixo = 2000.00
-    
     fund_inicial = obter_quantidade(row, "FUNDAMENTAL INICIAL")
     fund_final = obter_quantidade(row, "FUNDAMENTAL FINAL")
     fund_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
@@ -20,24 +53,24 @@ def calcular_profin_gestao(row: pd.Series) -> float:
     repasse_por_area = obter_quantidade(row, "REPASSE POR AREA")
     
     valor_variavel = (
-        (fund_inicial * 1.0) +
-        (fund_final * 1.10) +
-        (fund_integral * 1.4) +
-        (profissionalizante * 1.3) +
-        ((alternancia * 1.4)*4.0) +
-        (medio_integral * 1.4) +
-        (medio_regular * 1.25) +
-        ((esp_fund_regular * 1.0)*2.0) +
-        ((esp_fund_integral * 1.4)*2.0) +
-        ((esp_medio_parcial * 1.25)*2.0) +
-        ((esp_medio_integral * 1.4)*2.0) 
-    ) * 90.0
+        (fund_inicial * PESO_FUNDAMENTAL_INICIAL) +
+        (fund_final * PESO_FUNDAMENTAL_FINAL) +
+        (fund_integral * PESO_FUNDAMENTAL_INTEGRAL) +
+        (profissionalizante * PESO_PROFISSIONALIZANTE) +
+        ((alternancia * PESO_ALTERNANCIA) * MULTIPLICADOR_ALTERNANCIA) +
+        (medio_integral * PESO_MEDIO_INTEGRAL) +
+        (medio_regular * PESO_MEDIO_REGULAR) +
+        ((esp_fund_regular * PESO_ESPECIAL_FUNDAMENTAL_REGULAR) * MULTIPLICADOR_ESPECIAL) +
+        ((esp_fund_integral * PESO_ESPECIAL_FUNDAMENTAL_INTEGRAL) * MULTIPLICADOR_ESPECIAL) +
+        ((esp_medio_parcial * PESO_ESPECIAL_MEDIO_PARCIAL) * MULTIPLICADOR_ESPECIAL) +
+        ((esp_medio_integral * PESO_ESPECIAL_MEDIO_INTEGRAL) * MULTIPLICADOR_ESPECIAL) 
+    ) * MULTIPLICADOR_GESTAO
  
     bonus = 0
-    if repasse_por_area in (10000, 15000):
+    if repasse_por_area in BONUS_REPASSE_POR_AREA_VALORES:
         bonus = repasse_por_area
 
-    valor_total = valor_fixo + valor_variavel + bonus
+    valor_total = VALOR_FIXO_GESTAO + valor_variavel + bonus
     return round(valor_total, 2)
 
 def calcular_complemento_gestao(row: pd.Series) -> float:
@@ -54,18 +87,18 @@ def calcular_complemento_gestao(row: pd.Series) -> float:
     esp_medio_integral = obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL")
  
     valor_variavel = (
-        (fund_inicial * 1.0) +
-        (fund_final * 1.10) +
-        (fund_integral * 1.4) +
-        (profissionalizante * 1.3) +
-        ((alternancia * 1.4)*4.0) +
-        (medio_integral * 1.4) +
-        (medio_regular * 1.25) +
-        ((esp_fund_regular * 1.0)*2.0) +
-        ((esp_fund_integral * 1.4)*2.0) +
-        ((esp_medio_parcial * 1.25)*2.0) +
-        ((esp_medio_integral * 1.4)*2.0) 
-    ) * 90.0
+        (fund_inicial * PESO_FUNDAMENTAL_INICIAL) +
+        (fund_final * PESO_FUNDAMENTAL_FINAL) +
+        (fund_integral * PESO_FUNDAMENTAL_INTEGRAL) +
+        (profissionalizante * PESO_PROFISSIONALIZANTE) +
+        ((alternancia * PESO_ALTERNANCIA) * MULTIPLICADOR_ALTERNANCIA) +
+        (medio_integral * PESO_MEDIO_INTEGRAL) +
+        (medio_regular * PESO_MEDIO_REGULAR) +
+        ((esp_fund_regular * PESO_ESPECIAL_FUNDAMENTAL_REGULAR) * MULTIPLICADOR_ESPECIAL) +
+        ((esp_fund_integral * PESO_ESPECIAL_FUNDAMENTAL_INTEGRAL) * MULTIPLICADOR_ESPECIAL) +
+        ((esp_medio_parcial * PESO_ESPECIAL_MEDIO_PARCIAL) * MULTIPLICADOR_ESPECIAL) +
+        ((esp_medio_integral * PESO_ESPECIAL_MEDIO_INTEGRAL) * MULTIPLICADOR_ESPECIAL) 
+    ) * MULTIPLICADOR_GESTAO
  
     valor_total = valor_variavel 
     return round(valor_total, 2)
@@ -85,31 +118,30 @@ def calcular_profin_projeto(row: pd.Series) -> float:
         esp_medio_integral > 0
     )
 
-    if quantidade_aluno <= 500:
-        qt_projeto = 1 * (2 if tem_integral else 1)
-    elif quantidade_aluno <= 1000:
-        qt_projeto = 2 * (2 if tem_integral else 1)
+    if quantidade_aluno <= LIMITE_ALUNOS_PROJETO_1:
+        qt_projeto = NUM_PROJETOS_ATE_500 * (MULTIPLICADOR_PROJETO_INTEGRAL if tem_integral else 1)
+    elif quantidade_aluno <= LIMITE_ALUNOS_PROJETO_2:
+        qt_projeto = NUM_PROJETOS_ATE_1000 * (MULTIPLICADOR_PROJETO_INTEGRAL if tem_integral else 1)
     else:
-        qt_projeto = 3 * (2 if tem_integral else 1)
+        qt_projeto = NUM_PROJETOS_ACIMA_1000 * (MULTIPLICADOR_PROJETO_INTEGRAL if tem_integral else 1)
 
     return round(qt_projeto, 2)
 
 def calcular_profin_kit_escolar(row: pd.Series) -> float:
     quantidade_aluno = obter_quantidade(row, "TOTAL")
-    return round(quantidade_aluno * 150, 2)
+    return round(quantidade_aluno * VALOR_UNITARIO_KIT_ESCOLAR, 2)
 
 def calcular_profin_uniforme(row: pd.Series) -> float:
     quantidade_aluno = obter_quantidade(row, "TOTAL")
-    return round(quantidade_aluno * 60, 2)
+    return round(quantidade_aluno * VALOR_UNITARIO_UNIFORME, 2)
 
 def calcular_profin_merenda(row: pd.Series) -> float:
-    valor_per_capita = 35.0
+    valor_per_capita = VALOR_PER_CAPITA_MERENDA
 
     fund_inicial = obter_quantidade(row, "FUNDAMENTAL INICIAL")
     fund_final = obter_quantidade(row, "FUNDAMENTAL FINAL")
     profissionalizante = obter_quantidade(row, "PROFISSIONALIZANTE")
     medio_regular = obter_quantidade(row, "ENSINO MÉDIO REGULAR")
-
     fund_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
     medio_integral = obter_quantidade(row, "ENSINO MÉDIO INTEGRAL")
     esp_fund_integral = obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL")
@@ -121,33 +153,32 @@ def calcular_profin_merenda(row: pd.Series) -> float:
 
     valor_total = (
         ((fund_inicial + fund_final + profissionalizante + medio_regular) * valor_per_capita) + 
-        ((fund_integral + medio_integral + esp_fund_integral + esp_medio_integral + esp_fund_regular + esp_medio_parcial) * 2 * valor_per_capita) +
-        (alternancia * (valor_per_capita * 4))
+        ((fund_integral + medio_integral + esp_fund_integral + esp_medio_integral + esp_fund_regular + esp_medio_parcial) * MULTIPLICADOR_MERENDA_INTEGRAL * valor_per_capita) +
+        (alternancia * (valor_per_capita * MULTIPLICADOR_MERENDA_ALTERNANCIA))
     )
 
     if (validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA") != "NÃO"):
-        return round(valor_total * 2, 2)
+        return round(valor_total * MULTIPLICADOR_INDIGENA_QUILOMBOLA, 2)
 
     return round(valor_total, 2)
 
 def calcular_profin_sala_recurso(row: pd.Series) -> float:
     if (obter_quantidade(row, "SALA DE RECURSO") != 0):
-        valor_fixo = 2000
         quantidade_aluno = obter_quantidade(row, "SALA DE RECURSO")
-        return round(quantidade_aluno * 180 + valor_fixo, 2)
+        return round(quantidade_aluno * VALOR_UNITARIO_SALA_RECURSO + VALOR_FIXO_SALA_RECURSO, 2)
     return 0.00
 
 def calcular_profin_climatizacao(row: pd.Series) -> float:
     qtd_aparelhos = obter_quantidade(row, "CLIMATIZAÇÃO")
-    return round(qtd_aparelhos * 300, 2)
+    return round(qtd_aparelhos * VALOR_UNITARIO_CLIMATIZACAO, 2)
 
 def calcular_profin_preuni(row: pd.Series) -> float:
     qtd_alunos_preuni = obter_quantidade(row, "PREUNI")
-    return round(qtd_alunos_preuni * 90, 2)
+    return round(qtd_alunos_preuni * VALOR_UNITARIO_PREUNI, 2)
 
 def calcular_profin_permanente(row: pd.Series) -> float:
     quantidade_aluno = obter_quantidade(row, "TOTAL")
-    return round(quantidade_aluno * 110, 2)
+    return round(quantidade_aluno * VALOR_UNITARIO_PERMANENTE, 2)
 
 def calcular_todas_cotas(row: pd.Series) -> Dict[str, Any]:
     profin_gestao = calcular_profin_gestao(row)

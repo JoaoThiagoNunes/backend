@@ -4,12 +4,12 @@ from sqlalchemy.orm import Session
 from src.core.database import transaction
 from src.core.logging_config import logger
 from src.core.exceptions import NotFoundException, BadRequestException
-from src.modules.features.anos.utils import obter_ano_letivo
+from src.modules.features.anos import obter_ano_letivo
 from src.modules.features.escolas import Escola
 from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.features.calculos import CalculosProfin
 from src.modules.features.calculos.repository import CalculoRepository
-from src.modules.features.projetos.constants import VALOR_PROJETO_UNITARIO
+from src.modules.shared.constants import VALOR_PROJETO_UNITARIO
 from src.modules.features.projetos import LiberacoesProjeto
 from src.modules.features.projetos.repository import ProjetoRepository
 from src.modules.schemas.parcelas import RepasseResumoResponse, RepasseFolhaInfo, EscolaPrevisaoInfo

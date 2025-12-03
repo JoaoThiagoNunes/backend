@@ -8,14 +8,10 @@ from src.core.exceptions import UploadNaoEncontradoException
 from src.modules.features.uploads.repository import UploadRepository
 from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.schemas.upload import UploadListItem, UploadDetailInfo, EscolaPlanilhaInfo
-from src.modules.features.anos.utils import obter_ano_letivo
-from src.modules.shared.utils import (
-    obter_texto,
-    obter_quantidade,
-    validar_indigena_e_quilombola,
-)
-from src.modules.features.uploads.utils import obter_ou_criar_upload_ativo
-from src.modules.features.projetos.utils import obter_quantidade_projetos_aprovados
+from src.modules.features.anos import obter_ano_letivo
+from src.modules.features.uploads import obter_ou_criar_upload_ativo
+from src.modules.features.projetos import obter_quantidade_projetos_aprovados
+from src.modules.shared.utils import obter_texto, obter_quantidade, validar_indigena_e_quilombola
 
 
 class UploadService:
