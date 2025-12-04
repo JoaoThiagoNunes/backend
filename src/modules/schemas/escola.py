@@ -26,16 +26,22 @@ class EscolaInfo(BaseModel):
     repasse_por_area: Optional[int] = None
     indigena_quilombola: Optional[str] = None
     created_at: Optional[datetime] = None
+    codigo_ept: Optional[str] = None
+    codigo_inep: Optional[str] = None
 
 class EscolaCreate(BaseModel):
     nome_uex: str
     dre: Optional[str] = None
+    codigo_ept: Optional[str] = None
+    codigo_inep: Optional[str] = None
 
 class EscolaRead(BaseModel):
     id: int
     nome_uex: str
     dre: Optional[str] = None
     total_alunos: Optional[int] = None
+    codigo_ept: Optional[str] = None
+    codigo_inep: Optional[str] = None
     
     class Config:
         from_attributes = True

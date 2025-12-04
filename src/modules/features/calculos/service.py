@@ -9,7 +9,7 @@ from src.modules.features.calculos.repository import CalculoRepository
 from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.schemas.calculos import EscolaCalculo
 from src.modules.features.anos import obter_ano_letivo
-from src.modules.features.calculos import calcular_todas_cotas
+from .utils import calcular_todas_cotas
 
 
 class CalculoService:
@@ -104,7 +104,9 @@ class CalculoService:
                     "PREUNI": escola_obj.preuni,
                     "PROJETOS": escola_obj.quantidade_projetos_aprovados,
                     "INDIGENA & QUILOMBOLA": escola_obj.indigena_quilombola,
-                    "REPASSE POR AREA": escola_obj.repasse_por_area
+                    "REPASSE POR AREA": escola_obj.repasse_por_area,
+                    "EPT": escola_obj.codigo_ept,
+                    "INEP": escola_obj.codigo_inep,
                 }
                 
                 row_series = pd.Series(row_data)

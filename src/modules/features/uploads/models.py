@@ -9,17 +9,14 @@ class Upload(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     
-    # Chave estrangeira para AnoLetivo
     ano_letivo_id = Column(Integer, ForeignKey("anos_letivos.id", ondelete="CASCADE"), nullable=False, index=True)
     
     filename = Column(String(255), nullable=False)
     upload_date = Column(DateTime, default=datetime.now, nullable=False)
     total_escolas = Column(Integer, default=0)
     
-    # Flag para indicar se é o upload ativo (último upload do ano)
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     
-    # Relacionamentos
     ano_letivo = relationship("AnoLetivo", back_populates="uploads")
     escolas = relationship("Escola", back_populates="upload", cascade="all, delete-orphan")
     

@@ -9,7 +9,7 @@ from src.modules.features.uploads.repository import UploadRepository
 from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.schemas.upload import UploadListItem, UploadDetailInfo, EscolaPlanilhaInfo
 from src.modules.features.anos import obter_ano_letivo
-from src.modules.features.uploads import obter_ou_criar_upload_ativo
+from .utils import obter_ou_criar_upload_ativo
 from src.modules.features.projetos import obter_quantidade_projetos_aprovados
 from src.modules.shared.utils import obter_texto, obter_quantidade, validar_indigena_e_quilombola
 
@@ -75,6 +75,8 @@ class UploadService:
                 "estado_liberacao": escola.estado_liberacao,
                 "numeracao_folha": escola.numeracao_folha,
                 "created_at": escola.created_at,
+                "codigo_ept": escola.codigo_ept,
+                "codigo_inep": escola.codigo_inep,
             }
 
             escolas_planilha.append(EscolaPlanilhaInfo(dados_planilha=dados_escola))
@@ -99,12 +101,8 @@ class UploadService:
         ano_letivo_id: Optional[int] = None
     ) -> Dict[str, Any]:
         ano_letivo, ano_letivo_id = obter_ano_letivo(db, ano_letivo_id)
-        
-        logger.info("="*60)
         logger.info(f"UPLOAD PARA ANO LETIVO: {ano_letivo.ano} (Status: {ano_letivo.status.value})")
-        logger.info("="*60)
         
-        # Ler arquivo
         if filename.endswith('.csv'):
             df = pd.read_csv(BytesIO(file_contents))
         else:
@@ -152,6 +150,11 @@ class UploadService:
                         logger.debug(f"[{idx + 1}/{len(df)}] Processando: {nome_escola} (DRE: {dre_val or 'N/A'})")
                     
                     escola_existente = mapa_escolas_existentes.get(chave_escola)
+
+                    codigo_ept_val = obter_texto(row, "CODIGO DE EPT", "")
+                    if not codigo_ept_val:
+                        codigo_ept_val = obter_texto(row, "EPT", "")
+                    codigo_ept_val = codigo_ept_val or None
                     
                     if escola_existente:
                         # Atualizar escola existente
@@ -175,7 +178,9 @@ class UploadService:
                             preuni=obter_quantidade(row, "PREUNI"),
                             quantidade_projetos_aprovados=obter_quantidade_projetos_aprovados(row),
                             repasse_por_area=obter_quantidade(row, "REPASSE POR AREA"),
-                            indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
+                            indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA"),
+                            codigo_ept=obter_texto(row, "EPT"),
+                            codigo_inep=obter_texto(row, "INEP"),
                         )
 
                         escolas_atualizadas += 1
@@ -204,7 +209,9 @@ class UploadService:
                             preuni=obter_quantidade(row, "PREUNI"),
                             quantidade_projetos_aprovados=obter_quantidade_projetos_aprovados(row),
                             repasse_por_area=obter_quantidade(row, "REPASSE POR AREA"),
-                            indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA")
+                            indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA"),
+                            codigo_ept=obter_texto(row, "EPT"),
+                            codigo_inep=obter_texto(row, "INEP"),
                         )
                         
                         escolas_criadas += 1

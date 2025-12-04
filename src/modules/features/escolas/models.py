@@ -19,6 +19,8 @@ class Escola(Base):
     nome_uex = Column(String(255), nullable=False, index=True)
     dre = Column(String(100), nullable=True)
     cnpj = Column(String(20), nullable=True, index=True)
+    codigo_ept = Column(String(50), nullable=True, index=True)
+    codigo_inep = Column(String(25), nullable=True, index=True)
     
     # Quantidades de alunos por modalidade
     total_alunos = Column(Integer, default=0)
