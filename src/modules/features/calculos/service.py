@@ -48,7 +48,7 @@ class CalculoService:
                     profin_merenda=calculo.profin_merenda or 0.0,
                     profin_sala_recurso=calculo.profin_sala_recurso or 0.0,
                     profin_permanente=calculo.profin_permanente or 0.0,
-                    profin_climatizacao=calculo.profin_climatizacao or 0.0,
+                    # profin_climatizacao=calculo.profin_climatizacao or 0.0, # Desativado temporariamente
                     profin_preuni=calculo.profin_preuni or 0.0,
                     valor_total=valor_total,
                 )
@@ -100,7 +100,7 @@ class CalculoService:
                     "ESPECIAL MÉDIO PARCIAL": escola_obj.especial_medio_parcial,
                     "ESPECIAL MÉDIO INTEGRAL": escola_obj.especial_medio_integral,
                     "SALA DE RECURSO": escola_obj.sala_recurso,
-                    "CLIMATIZAÇÃO": escola_obj.climatizacao,
+                    # "CLIMATIZAÇÃO": escola_obj.climatizacao, # Desativado temporariamente
                     "PREUNI": escola_obj.preuni,
                     "PROJETOS": escola_obj.quantidade_projetos_aprovados,
                     "INDIGENA & QUILOMBOLA": escola_obj.indigena_quilombola,
@@ -125,7 +125,7 @@ class CalculoService:
                         profin_merenda=cotas["profin_merenda"],
                         profin_sala_recurso=cotas["profin_sala_recurso"],
                         profin_permanente=cotas["profin_permanente"],
-                        profin_climatizacao=cotas["profin_climatizacao"],
+                        # profin_climatizacao=cotas["profin_climatizacao"], # Desativado temporariamente
                         profin_preuni=cotas["profin_preuni"],
                         valor_total=cotas["valor_total"],
                         calculated_at=datetime.now()
@@ -141,7 +141,7 @@ class CalculoService:
                         profin_merenda=cotas["profin_merenda"],
                         profin_sala_recurso=cotas["profin_sala_recurso"],
                         profin_permanente=cotas["profin_permanente"],
-                        profin_climatizacao=cotas["profin_climatizacao"],
+                        # profin_climatizacao=cotas["profin_climatizacao"], # Desativado temporariamente
                         profin_preuni=cotas["profin_preuni"],
                         valor_total=cotas["valor_total"],
                         calculated_at=datetime.now()

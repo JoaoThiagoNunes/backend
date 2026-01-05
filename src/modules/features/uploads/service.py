@@ -67,7 +67,7 @@ class UploadService:
                 "especial_medio_parcial": escola.especial_medio_parcial,
                 "especial_medio_integral": escola.especial_medio_integral,
                 "sala_recurso": escola.sala_recurso,
-                "climatizacao": escola.climatizacao,
+                #"climatizacao": escola.climatizacao, # Desativado temporariamente
                 "preuni": escola.preuni,
                 "quantidade_projetos_aprovados": escola.quantidade_projetos_aprovados,
                 "repasse_por_area": escola.repasse_por_area,

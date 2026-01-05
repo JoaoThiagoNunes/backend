@@ -39,7 +39,7 @@ _COTAS_PROCESSAR = [
     ("merenda", "profin_merenda", "merenda", 2),
     ("gestao", "profin_gestao", "gestao", 2),
     ("preuni", "profin_preuni", "preuni", 2),
-    ("climatizacao", "profin_climatizacao", "climatizacao", 2),
+    #("climatizacao", "profin_climatizacao", "climatizacao", 2), # Desativado temporariamente
     ("sala_recurso", "profin_sala_recurso", "sala_recurso", 2),
     ("uniforme", "profin_uniforme", "uniforme", 1),
     ("permanente", "profin_permanente", "permanente", 2),

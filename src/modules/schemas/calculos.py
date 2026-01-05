@@ -9,7 +9,7 @@ class CalculoItem(BaseModel):
     profin_merenda: float
     profin_sala_recurso: float
     profin_permanente: float
-    profin_climatizacao: float
+    #profin_climatizacao: float
     profin_preuni: float
     valor_total: float
 
@@ -24,7 +24,7 @@ class EscolaCalculo(BaseModel):
     profin_merenda: float
     profin_sala_recurso: float
     profin_permanente: float
-    profin_climatizacao: float
+    #profin_climatizacao: float
     profin_preuni: float
     valor_total: float
 
