@@ -7,6 +7,7 @@ from src.modules.shared.constants import (
     PESO_ESPECIAL_FUNDAMENTAL_REGULAR,
     PESO_ESPECIAL_FUNDAMENTAL_INTEGRAL,
     PESO_PROFISSIONALIZANTE,
+    PESO_PROFISSIONALIZANTE_INTEGRADO,
     PESO_ALTERNANCIA,
     PESO_MEDIO_INTEGRAL,
     PESO_MEDIO_REGULAR,
@@ -29,6 +30,7 @@ def calcular_porcentagens_ensino(escola: Escola) -> Tuple[float, float]:
     # Calcular valor ponderado de MÉDIO
     valor_medio = (
         (escola.profissionalizante * PESO_PROFISSIONALIZANTE) +
+        (escola.profissionalizante_integrado * PESO_PROFISSIONALIZANTE_INTEGRADO) +
         (escola.alternancia * PESO_ALTERNANCIA) +
         (escola.ensino_medio_integral * PESO_MEDIO_INTEGRAL) +
         (escola.ensino_medio_regular * PESO_MEDIO_REGULAR) +

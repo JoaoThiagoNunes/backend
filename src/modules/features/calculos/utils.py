@@ -6,6 +6,7 @@ from src.modules.shared.constants import (
     PESO_FUNDAMENTAL_FINAL,
     PESO_FUNDAMENTAL_INTEGRAL,
     PESO_PROFISSIONALIZANTE,
+    PESO_PROFISSIONALIZANTE_INTEGRADO,
     PESO_ALTERNANCIA,
     PESO_MEDIO_INTEGRAL,
     PESO_MEDIO_REGULAR,
@@ -43,6 +44,7 @@ def calcular_profin_gestao(row: pd.Series) -> float:
     fund_final = obter_quantidade(row, "FUNDAMENTAL FINAL")
     fund_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
     profissionalizante = obter_quantidade(row, "PROFISSIONALIZANTE")
+    profissionalizante_integrado = obter_quantidade(row, "PROFISSIONALIZANTE INTEGRADO")
     alternancia = obter_quantidade(row, "ALTERNÂNCIA")
     medio_integral = obter_quantidade(row, "ENSINO MÉDIO INTEGRAL")
     medio_regular = obter_quantidade(row, "ENSINO MÉDIO REGULAR")
@@ -57,6 +59,7 @@ def calcular_profin_gestao(row: pd.Series) -> float:
         (fund_final * PESO_FUNDAMENTAL_FINAL) +
         (fund_integral * PESO_FUNDAMENTAL_INTEGRAL) +
         (profissionalizante * PESO_PROFISSIONALIZANTE) +
+        (profissionalizante_integrado * PESO_PROFISSIONALIZANTE_INTEGRADO) +
         ((alternancia * PESO_ALTERNANCIA) * MULTIPLICADOR_ALTERNANCIA) +
         (medio_integral * PESO_MEDIO_INTEGRAL) +
         (medio_regular * PESO_MEDIO_REGULAR) +
@@ -78,6 +81,7 @@ def calcular_complemento_gestao(row: pd.Series) -> float:
     fund_final = obter_quantidade(row, "FUNDAMENTAL FINAL")
     fund_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
     profissionalizante = obter_quantidade(row, "PROFISSIONALIZANTE")
+    profissionalizante_integrado = obter_quantidade(row, "PROFISSIONALIZANTE INTEGRADO")
     alternancia = obter_quantidade(row, "ALTERNÂNCIA")
     medio_integral = obter_quantidade(row, "ENSINO MÉDIO INTEGRAL")
     medio_regular = obter_quantidade(row, "ENSINO MÉDIO REGULAR")
@@ -91,6 +95,7 @@ def calcular_complemento_gestao(row: pd.Series) -> float:
         (fund_final * PESO_FUNDAMENTAL_FINAL) +
         (fund_integral * PESO_FUNDAMENTAL_INTEGRAL) +
         (profissionalizante * PESO_PROFISSIONALIZANTE) +
+        (profissionalizante_integrado * PESO_PROFISSIONALIZANTE_INTEGRADO) +
         ((alternancia * PESO_ALTERNANCIA) * MULTIPLICADOR_ALTERNANCIA) +
         (medio_integral * PESO_MEDIO_INTEGRAL) +
         (medio_regular * PESO_MEDIO_REGULAR) +
@@ -141,6 +146,7 @@ def calcular_profin_merenda(row: pd.Series) -> float:
     fund_inicial = obter_quantidade(row, "FUNDAMENTAL INICIAL")
     fund_final = obter_quantidade(row, "FUNDAMENTAL FINAL")
     profissionalizante = obter_quantidade(row, "PROFISSIONALIZANTE")
+    profissionalizante_integrado = obter_quantidade(row, "PROFISSIONALIZANTE INTEGRADO")
     medio_regular = obter_quantidade(row, "ENSINO MÉDIO REGULAR")
     fund_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
     medio_integral = obter_quantidade(row, "ENSINO MÉDIO INTEGRAL")
@@ -148,12 +154,11 @@ def calcular_profin_merenda(row: pd.Series) -> float:
     esp_medio_integral = obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL")
     esp_fund_regular = obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR")
     esp_medio_parcial = obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL")
-
     alternancia = obter_quantidade(row, "ALTERNÂNCIA")
 
     valor_total = (
         ((fund_inicial + fund_final + profissionalizante + medio_regular) * valor_per_capita) + 
-        ((fund_integral + medio_integral + esp_fund_integral + esp_medio_integral + esp_fund_regular + esp_medio_parcial) * MULTIPLICADOR_MERENDA_INTEGRAL * valor_per_capita) +
+        ((fund_integral + medio_integral + esp_fund_integral + esp_medio_integral + profissionalizante_integrado + esp_fund_regular + esp_medio_parcial) * MULTIPLICADOR_MERENDA_INTEGRAL * valor_per_capita) +
         (alternancia * (valor_per_capita * MULTIPLICADOR_MERENDA_ALTERNANCIA))
     )
 

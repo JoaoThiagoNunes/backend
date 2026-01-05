@@ -12,6 +12,7 @@ class EscolaInfo(BaseModel):
     fundamental_final: Optional[int] = None
     fundamental_integral: Optional[int] = None
     profissionalizante: Optional[int] = None
+    profissionalizante_integrado: Optional[int] = None
     alternancia: Optional[int] = None
     ensino_medio_integral: Optional[int] = None
     ensino_medio_regular: Optional[int] = None

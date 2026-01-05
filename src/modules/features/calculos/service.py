@@ -92,6 +92,7 @@ class CalculoService:
                     "FUNDAMENTAL FINAL": escola_obj.fundamental_final,
                     "FUNDAMENTAL INTEGRAL": escola_obj.fundamental_integral,
                     "PROFISSIONALIZANTE": escola_obj.profissionalizante,
+                    "PROFISSIONALIZANTE INTEGRADO": escola_obj.profissionalizante_integrado,
                     "ALTERNÂNCIA": escola_obj.alternancia,
                     "ENSINO MÉDIO INTEGRAL": escola_obj.ensino_medio_integral,
                     "ENSINO MÉDIO REGULAR": escola_obj.ensino_medio_regular,

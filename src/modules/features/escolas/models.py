@@ -28,6 +28,7 @@ class Escola(Base):
     fundamental_final = Column(Integer, default=0)
     fundamental_integral = Column(Integer, default=0)
     profissionalizante = Column(Integer, default=0)
+    profissionalizante_integrado = Column(Integer, default=0)
     alternancia = Column(Integer, default=0)
     ensino_medio_integral = Column(Integer, default=0)
     ensino_medio_regular = Column(Integer, default=0)
@@ -38,7 +39,7 @@ class Escola(Base):
     
     # Recursos especiais
     sala_recurso = Column(Integer, default=0)
-    climatizacao = Column(Integer, default=0)
+    #climatizacao = Column(Integer, default=0)
     preuni = Column(Integer, default=0)
     indigena_quilombola = Column(String(10), default="NÃO")
     quantidade_projetos_aprovados = Column(Integer, default=0)
