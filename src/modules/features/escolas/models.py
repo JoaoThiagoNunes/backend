@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, UniqueConstraint
+from sqlalchemy import Column, Float, Integer, String, DateTime, ForeignKey, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from src.modules.shared.base import Base
@@ -44,6 +44,8 @@ class Escola(Base):
     indigena_quilombola = Column(String(10), default="NÃO")
     quantidade_projetos_aprovados = Column(Integer, default=0)
     repasse_por_area = Column(Integer, default=0)
+    saldo_reprogramado_gestao = Column(Float, default=0.0)
+    saldo_reprogramado_merenda = Column(Float, default=0.0)
     
     # Estado de liberação e numeração da folha
     estado_liberacao = Column(Boolean, default=False, nullable=False, index=True)

@@ -29,6 +29,8 @@ class EscolaInfo(BaseModel):
     created_at: Optional[datetime] = None
     codigo_ept: Optional[str] = None
     codigo_inep: Optional[str] = None
+    saldo_reprogramado_gestao: Optional[float] = None
+    saldo_reprogramado_merenda: Optional[float] = None
 
 class EscolaCreate(BaseModel):
     nome_uex: str

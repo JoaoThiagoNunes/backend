@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import Dict, List, Optional
+from src.modules.features.parcelas.utils import dividir_cota_em_parcelas_por_ensino
 from src.core.database import get_db
 from src.core.logging_config import logger
 from src.modules.features.anos import obter_ano_letivo
-from src.modules.features.parcelas import calcular_porcentagens_ensino,dividir_cota_em_parcelas_por_ensino
+from src.modules.features.parcelas import calcular_porcentagens_ensino
 from src.modules.features.calculos import CalculosProfin, TipoCota, TipoEnsino
 from src.modules.features.escolas import Escola
 from src.modules.features.parcelas import ParcelasProfin, LiberacoesParcela, ParcelaService
@@ -574,7 +575,9 @@ def separar_valores_em_parcelas(
                     valor_cota,
                     pct_fundamental,
                     pct_medio,
-                    numero_parcelas=num_parcelas
+                    numero_parcelas=num_parcelas,
+                    escola=escola,
+                    tipo_cota=enum_valor
                 )
                 
                 tipo_cota_enum = TipoCota(enum_valor)
@@ -628,9 +631,16 @@ def separar_valores_em_parcelas(
                     db.add(parcela_2_medio)
                     total_parcelas_criadas += 1
                 
+                saldo_reprogramado = 0.0
+                if enum_valor == "gestao" and escola.saldo_reprogramado_gestao:
+                    saldo_reprogramado = escola.saldo_reprogramado_gestao or 0.0
+                elif enum_valor == "merenda" and escola.saldo_reprogramado_merenda:
+                    saldo_reprogramado = escola.saldo_reprogramado_merenda or 0.0
+
                 parcela_por_cota_data = {
                     "tipo_cota": nome_exibicao,
                     "valor_total_reais": valor_cota,
+                    "saldo_reprogramado": saldo_reprogramado,
                     "parcela_1": {
                         "fundamental": divisao["parcela_1"]["fundamental"] / 100.0,
                         "medio": divisao["parcela_1"]["medio"] / 100.0
@@ -648,7 +658,6 @@ def separar_valores_em_parcelas(
                     }
                 
                 parcelas_por_cota.append(ParcelaPorCota(**parcela_por_cota_data))
-            
             escolas_processadas.append(
                 EscolaParcelas(
                     escola_id=escola.id,

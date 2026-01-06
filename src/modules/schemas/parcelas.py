@@ -13,6 +13,7 @@ class ParcelaInfo(BaseModel):
 class ParcelaPorCota(BaseModel):
     tipo_cota: str
     valor_total_reais: float
+    saldo_reprogramado: float
     parcela_1: Dict[str, float]  # {"fundamental": valor, "medio": valor}
     parcela_2: Optional[Dict[str, float]] = None  # Opcional - apenas para cotas com 2 parcelas
     porcentagens: Dict[str, float]  # {"fundamental": %, "medio": %}

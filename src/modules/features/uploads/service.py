@@ -11,7 +11,7 @@ from src.modules.schemas.upload import UploadListItem, UploadDetailInfo, EscolaP
 from src.modules.features.anos import obter_ano_letivo
 from .utils import obter_ou_criar_upload_ativo
 from src.modules.features.projetos import obter_quantidade_projetos_aprovados
-from src.modules.shared.utils import obter_texto, obter_quantidade, validar_indigena_e_quilombola
+from src.modules.shared.utils import obter_texto, obter_quantidade, obter_valor_float, validar_indigena_e_quilombola
 
 
 class UploadService:
@@ -48,38 +48,48 @@ class UploadService:
         escolas_planilha: List[EscolaPlanilhaInfo] = []
 
         for escola in escolas:
-            dados_escola = {
-                "id": escola.id,
-                "upload_id": escola.upload_id,
-                "nome_uex": escola.nome_uex,
-                "dre": escola.dre,
-                "cnpj": escola.cnpj,
-                "total_alunos": escola.total_alunos,
-                "fundamental_inicial": escola.fundamental_inicial,
-                "fundamental_final": escola.fundamental_final,
-                "fundamental_integral": escola.fundamental_integral,
-                "profissionalizante": escola.profissionalizante,
-                "alternancia": escola.alternancia,
-                "ensino_medio_integral": escola.ensino_medio_integral,
-                "ensino_medio_regular": escola.ensino_medio_regular,
-                "especial_fund_regular": escola.especial_fund_regular,
-                "especial_fund_integral": escola.especial_fund_integral,
-                "especial_medio_parcial": escola.especial_medio_parcial,
-                "especial_medio_integral": escola.especial_medio_integral,
-                "sala_recurso": escola.sala_recurso,
-                #"climatizacao": escola.climatizacao, # Desativado temporariamente
-                "preuni": escola.preuni,
-                "quantidade_projetos_aprovados": escola.quantidade_projetos_aprovados,
-                "repasse_por_area": escola.repasse_por_area,
-                "indigena_quilombola": escola.indigena_quilombola,
-                "estado_liberacao": escola.estado_liberacao,
-                "numeracao_folha": escola.numeracao_folha,
-                "created_at": escola.created_at,
-                "codigo_ept": escola.codigo_ept,
-                "codigo_inep": escola.codigo_inep,
-            }
+            try:
+                dados_escola = {
+                    "id": escola.id,
+                    "upload_id": escola.upload_id,
+                    "nome_uex": escola.nome_uex,
+                    "dre": escola.dre,
+                    "cnpj": escola.cnpj,
+                    "total_alunos": escola.total_alunos,
+                    "fundamental_inicial": escola.fundamental_inicial,
+                    "fundamental_final": escola.fundamental_final,
+                    "fundamental_integral": escola.fundamental_integral,
+                    "profissionalizante": escola.profissionalizante,
+                    "profissionalizante_integrado": escola.profissionalizante_integrado,
+                    "alternancia": escola.alternancia,
+                    "ensino_medio_integral": escola.ensino_medio_integral,
+                    "ensino_medio_regular": escola.ensino_medio_regular,
+                    "especial_fund_regular": escola.especial_fund_regular,
+                    "especial_fund_integral": escola.especial_fund_integral,
+                    "especial_medio_parcial": escola.especial_medio_parcial,
+                    "especial_medio_integral": escola.especial_medio_integral,
+                    "sala_recurso": escola.sala_recurso,
+                    #"climatizacao": escola.climatizacao, # Desativado temporariamente
+                    "preuni": escola.preuni,
+                    "quantidade_projetos_aprovados": escola.quantidade_projetos_aprovados,
+                    "repasse_por_area": escola.repasse_por_area,
+                    "indigena_quilombola": escola.indigena_quilombola,
+                    "estado_liberacao": escola.estado_liberacao,
+                    "numeracao_folha": escola.numeracao_folha,
+                    "created_at": escola.created_at,
+                    "codigo_ept": escola.codigo_ept,
+                    "codigo_inep": escola.codigo_inep,
+                    "saldo_reprogramado_gestao": escola.saldo_reprogramado_gestao,
+                    "saldo_reprogramado_merenda": escola.saldo_reprogramado_merenda,
+                }
 
-            escolas_planilha.append(EscolaPlanilhaInfo(dados_planilha=dados_escola))
+                escolas_planilha.append(EscolaPlanilhaInfo(dados_planilha=dados_escola))
+            except Exception as e:
+                logger.error(f"Erro ao processar escola {escola.id} ({escola.nome_uex}): {str(e)}")
+                logger.error(f"profissionalizante_integrado = {escola.profissionalizante_integrado} (tipo: {type(escola.profissionalizante_integrado)})")
+                logger.exception("Detalhes completos do erro:")
+                # Continuar processando outras escolas, mas logar o erro
+                continue
 
         return {
             "upload": UploadDetailInfo(
@@ -166,6 +176,7 @@ class UploadService:
                             fundamental_final=obter_quantidade(row, "FUNDAMENTAL FINAL"),
                             fundamental_integral=obter_quantidade(row, "FUNDAMENTAL INTEGRAL"),
                             profissionalizante=obter_quantidade(row, "PROFISSIONALIZANTE"),
+                            profissionalizante_integrado=obter_quantidade(row, "PROFISSIONALIZANTE INTEGRADO"), 
                             alternancia=obter_quantidade(row, "ALTERNÂNCIA"),
                             ensino_medio_integral=obter_quantidade(row, "ENSINO MÉDIO INTEGRAL"),
                             ensino_medio_regular=obter_quantidade(row, "ENSINO MÉDIO REGULAR"),
@@ -181,6 +192,8 @@ class UploadService:
                             indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA"),
                             codigo_ept=obter_texto(row, "EPT"),
                             codigo_inep=obter_texto(row, "INEP"),
+                            saldo_reprogramado_gestao=obter_valor_float(row, "SALDO GESTAO"),
+                            saldo_reprogramado_merenda=obter_valor_float(row, "SALDO MERENDA"),
                         )
 
                         escolas_atualizadas += 1
@@ -197,6 +210,7 @@ class UploadService:
                             fundamental_final=obter_quantidade(row, "FUNDAMENTAL FINAL"),
                             fundamental_integral=obter_quantidade(row, "FUNDAMENTAL INTEGRAL"),
                             profissionalizante=obter_quantidade(row, "PROFISSIONALIZANTE"),
+                            profissionalizante_integrado=obter_quantidade(row, "PROFISSIONALIZANTE INTEGRADO"),
                             alternancia=obter_quantidade(row, "ALTERNÂNCIA"),
                             ensino_medio_integral=obter_quantidade(row, "ENSINO MÉDIO INTEGRAL"),
                             ensino_medio_regular=obter_quantidade(row, "ENSINO MÉDIO REGULAR"),
@@ -212,6 +226,8 @@ class UploadService:
                             indigena_quilombola=validar_indigena_e_quilombola(row, "INDIGENA & QUILOMBOLA"),
                             codigo_ept=obter_texto(row, "EPT"),
                             codigo_inep=obter_texto(row, "INEP"),
+                            saldo_reprogramado_gestao=obter_valor_float(row, "SALDO GESTAO"),
+                            saldo_reprogramado_merenda=obter_valor_float(row, "SALDO MERENDA"),
                         )
                         
                         escolas_criadas += 1

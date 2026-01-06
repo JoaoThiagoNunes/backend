@@ -8,6 +8,13 @@ def obter_quantidade(row: pd.Series, coluna: str) -> int:
     except (ValueError, TypeError):
         return 0
 
+def obter_valor_float(row: pd.Series, coluna: str) -> float:
+    valor = row.get(coluna, 0.0)
+    try:
+        return float(valor) if pd.notna(valor) else 0.0
+    except (ValueError, TypeError):
+        return 0.0
+
 def obter_quantidade_por_nome(row: pd.Series, nome_normalizado: str) -> int:
     nome_normalizado = nome_normalizado.strip().lower()
     for coluna in row.index:

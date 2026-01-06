@@ -46,7 +46,6 @@ class ParcelasProfin(Base):
     
     @property
     def valor_reais(self) -> float:
-        """Retorna o valor em reais (centavos / 100)"""
         return self.valor_centavos / 100.0
 
 
