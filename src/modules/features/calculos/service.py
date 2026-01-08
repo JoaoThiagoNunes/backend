@@ -113,6 +113,19 @@ class CalculoService:
                 row_series = pd.Series(row_data)
                 cotas = calcular_todas_cotas(row_series)
                 
+                #zera o valor de merenda para o conservatorio de musica
+                row_series = pd.Series(row_data)
+                cotas = calcular_todas_cotas(row_series)
+                
+                if "conservatório" in escola_obj.nome_uex.lower() or "conservatorio" in escola_obj.nome_uex.lower():
+                    cotas["profin_merenda"] = 0.0
+                    # Recalcular valor_total sem merenda
+                    cotas["valor_total"] = round(sum([
+                        v for k, v in cotas.items() 
+                        if k not in ["tem_alternancia", "valor_total"] and isinstance(v, (int, float))
+                    ]), 2)
+                
+
                 calculo_obj = calculo_repo.find_by_escola_id(escola_obj.id)
                 
                 if calculo_obj:
