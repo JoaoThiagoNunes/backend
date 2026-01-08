@@ -43,7 +43,7 @@ _COTAS_PROCESSAR = [
     #("climatizacao", "profin_climatizacao", "climatizacao", 2), # Desativado temporariamente
     ("sala_recurso", "profin_sala_recurso", "sala_recurso", 2),
     ("uniforme", "profin_uniforme", "uniforme", 1),
-    ("permanente", "profin_permanente", "permanente", 2),
+    #("permanente", "profin_permanente", "permanente", 2), # Desativado temporariamente
     ("kit_escolar", "profin_kit_escolar", "kit_escolar", 1),
 ]
 _COTAS_PROCESSAR_ENUM = [TipoCota(item[2]) for item in _COTAS_PROCESSAR]

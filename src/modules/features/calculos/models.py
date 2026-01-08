@@ -12,7 +12,7 @@ class TipoCota(str, enum.Enum):
     UNIFORME = "uniforme"
     MERENDA = "merenda"
     SALA_RECURSO = "sala_recurso"
-    PERMANENTE = "permanente"
+    # PERMANENTE = "permanente" # Desativado temporariamente
     # CLIMATIZACAO = "climatizacao" # Desativado temporariamente
     PREUNI = "preuni"
 
@@ -37,7 +37,7 @@ class CalculosProfin(Base):
     profin_uniforme = Column(Float, default=0.0)
     profin_merenda = Column(Float, default=0.0)
     profin_sala_recurso = Column(Float, default=0.0)
-    profin_permanente = Column(Float, default=0.0)
+    # profin_permanente = Column(Float, default=0.0) # Desativado temporariamente
     # profin_climatizacao = Column(Float, default=0.0) # Desativado temporariamente
     profin_preuni = Column(Float, default=0.0)
     

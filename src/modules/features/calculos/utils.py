@@ -35,7 +35,7 @@ from src.modules.shared.constants import (
     VALOR_UNITARIO_SALA_RECURSO,
     # VALOR_UNITARIO_CLIMATIZACAO, # Desativado temporariamente
     VALOR_UNITARIO_PREUNI,
-    VALOR_UNITARIO_PERMANENTE,
+    # VALOR_UNITARIO_PERMANENTE, # Desativado temporariamente
 )
 
 
@@ -181,9 +181,9 @@ def calcular_profin_preuni(row: pd.Series) -> float:
     qtd_alunos_preuni = obter_quantidade(row, "PREUNI")
     return round(qtd_alunos_preuni * VALOR_UNITARIO_PREUNI, 2)
 
-def calcular_profin_permanente(row: pd.Series) -> float:
-    quantidade_aluno = obter_quantidade(row, "TOTAL")
-    return round(quantidade_aluno * VALOR_UNITARIO_PERMANENTE, 2)
+#def calcular_profin_permanente(row: pd.Series) -> float:
+#    quantidade_aluno = obter_quantidade(row, "TOTAL")
+#    return round(quantidade_aluno * VALOR_UNITARIO_PERMANENTE, 2)
 
 def calcular_todas_cotas(row: pd.Series) -> Dict[str, Any]:
     profin_gestao = calcular_profin_gestao(row)
@@ -192,7 +192,7 @@ def calcular_todas_cotas(row: pd.Series) -> Dict[str, Any]:
     profin_uniforme = calcular_profin_uniforme(row)
     profin_merenda = calcular_profin_merenda(row)
     profin_sala_recurso = calcular_profin_sala_recurso(row)
-    profin_permanente = calcular_profin_permanente(row)
+    # profin_permanente = calcular_profin_permanente(row) # Desativado temporariamente
     # profin_climatizacao = calcular_profin_climatizacao(row) # Desativado temporariamente
     profin_preuni = calcular_profin_preuni(row)
     
@@ -203,7 +203,7 @@ def calcular_todas_cotas(row: pd.Series) -> Dict[str, Any]:
         "profin_uniforme": profin_uniforme,
         "profin_merenda": profin_merenda,
         "profin_sala_recurso": profin_sala_recurso,
-        "profin_permanente": profin_permanente,
+        # "profin_permanente": profin_permanente, # Desativado temporariamente
         # "profin_climatizacao": profin_climatizacao, # Desativado temporariamente
         "profin_preuni": profin_preuni,
     }

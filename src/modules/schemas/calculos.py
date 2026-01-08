@@ -8,7 +8,7 @@ class CalculoItem(BaseModel):
     profin_uniforme: float
     profin_merenda: float
     profin_sala_recurso: float
-    profin_permanente: float
+    #profin_permanente: float # Desativado temporariamente
     #profin_climatizacao: float
     profin_preuni: float
     valor_total: float
@@ -23,7 +23,7 @@ class EscolaCalculo(BaseModel):
     profin_uniforme: float
     profin_merenda: float
     profin_sala_recurso: float
-    profin_permanente: float
+    #profin_permanente: float # Desativado temporariamente
     #profin_climatizacao: float
     profin_preuni: float
     valor_total: float

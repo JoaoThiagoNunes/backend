@@ -47,7 +47,7 @@ class CalculoService:
                     profin_uniforme=calculo.profin_uniforme or 0.0,
                     profin_merenda=calculo.profin_merenda or 0.0,
                     profin_sala_recurso=calculo.profin_sala_recurso or 0.0,
-                    profin_permanente=calculo.profin_permanente or 0.0,
+                    # profin_permanente=calculo.profin_permanente or 0.0, # Desativado temporariamente
                     # profin_climatizacao=calculo.profin_climatizacao or 0.0, # Desativado temporariamente
                     profin_preuni=calculo.profin_preuni or 0.0,
                     valor_total=valor_total,
@@ -113,10 +113,7 @@ class CalculoService:
                 row_series = pd.Series(row_data)
                 cotas = calcular_todas_cotas(row_series)
                 
-                #zera o valor de merenda para o conservatorio de musica
-                row_series = pd.Series(row_data)
-                cotas = calcular_todas_cotas(row_series)
-                
+                # Zera o valor de merenda para o conservatório de música
                 if "conservatório" in escola_obj.nome_uex.lower() or "conservatorio" in escola_obj.nome_uex.lower():
                     cotas["profin_merenda"] = 0.0
                     # Recalcular valor_total sem merenda
@@ -138,7 +135,7 @@ class CalculoService:
                         profin_uniforme=cotas["profin_uniforme"],
                         profin_merenda=cotas["profin_merenda"],
                         profin_sala_recurso=cotas["profin_sala_recurso"],
-                        profin_permanente=cotas["profin_permanente"],
+                        # profin_permanente=cotas["profin_permanente"], # Desativado temporariamente
                         # profin_climatizacao=cotas["profin_climatizacao"], # Desativado temporariamente
                         profin_preuni=cotas["profin_preuni"],
                         valor_total=cotas["valor_total"],
@@ -154,7 +151,7 @@ class CalculoService:
                         profin_uniforme=cotas["profin_uniforme"],
                         profin_merenda=cotas["profin_merenda"],
                         profin_sala_recurso=cotas["profin_sala_recurso"],
-                        profin_permanente=cotas["profin_permanente"],
+                        # profin_permanente=cotas["profin_permanente"], # Desativado temporariamente
                         # profin_climatizacao=cotas["profin_climatizacao"], # Desativado temporariamente
                         profin_preuni=cotas["profin_preuni"],
                         valor_total=cotas["valor_total"],
