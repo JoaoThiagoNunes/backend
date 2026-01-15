@@ -1349,3 +1349,166 @@ saldo_reprogramado
 2026-01-08 11:36:02 - profin - INFO - ← GET /parcelas/escola/266 [Status: 200] [Time: 0.004s]
 2026-01-08 11:36:02 - profin - INFO - → GET /parcelas/escola/267 [Client: 127.0.0.1]
 2026-01-08 11:36:02 - profin - INFO - ← GET /parcelas/escola/267 [Status: 200] [Time: 0.005s]
+2026-01-15 09:45:23 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 09:45:28 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 09:45:28 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 09:45:28 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 09:45:28 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 09:45:28 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 09:45:28 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 09:46:26 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:543/profin_db
+2026-01-15 09:46:27 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 09:46:27 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 09:46:27 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 09:46:27 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 09:46:27 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 09:46:27 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 09:46:33 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 09:46:34 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 09:46:34 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 09:46:34 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 09:46:34 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 09:46:34 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 09:46:34 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 09:47:16 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 09:47:16 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 09:47:16 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 09:47:16 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 09:47:16 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 09:47:16 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 09:47:16 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 09:57:37 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 09:57:38 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 09:57:38 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 09:57:38 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 09:57:38 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 09:57:38 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 09:57:38 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:01:18 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:01:18 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:01:18 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:01:18 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:01:18 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:01:18 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:01:18 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:01:40 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:01:41 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:01:41 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:01:41 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:01:41 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:01:41 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:01:41 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:02:08 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:02:09 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:02:09 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:02:09 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:02:09 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:02:09 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:02:09 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:02:15 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:02:16 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:02:16 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:02:16 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:02:16 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:02:16 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:02:16 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:02:30 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:02:31 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:02:31 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:02:31 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:02:31 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:02:31 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:02:31 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:03:03 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:03:04 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:03:04 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:03:04 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:03:04 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:03:04 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:03:04 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:03:10 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:03:10 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:03:10 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:03:10 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:03:10 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:03:10 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:03:10 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:03:15 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:03:15 - profin - INFO - Banco de dados 'profin_db' não existe. Criando...
+2026-01-15 10:03:16 - profin - INFO - Banco de dados 'profin_db' criado com sucesso.
+2026-01-15 10:03:17 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:03:17 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:03:17 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:03:17 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:03:17 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:03:17 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:03:17 - profin.scheduler - INFO - Scheduler iniciado com jobs: [<Job (id=b2f6b85db8524b99a5ab8ae84f46ee26 name=arquivar_anos_automaticamente)>, <Job (id=4c27e6e337d74cd3adcad9c75f85a775 name=limpar_anos_antigos)>]
+2026-01-15 10:03:17 - profin - INFO - Aplicação iniciada — scheduler ativo.
+2026-01-15 10:03:24 - profin.scheduler - INFO - Scheduler parado
+2026-01-15 10:03:24 - profin - INFO - Aplicação encerrando — scheduler parado.
+2026-01-15 10:03:29 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:03:29 - profin - INFO - Banco de dados 'profin_db' já existe.
+2026-01-15 10:03:29 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:03:29 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:03:29 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:03:29 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:03:29 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:03:29 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:03:30 - profin.scheduler - INFO - Scheduler iniciado com jobs: [<Job (id=ce47dc9618f44881ae13d033c272e462 name=arquivar_anos_automaticamente)>, <Job (id=9e671b92d0404545a41a0c4b600c98d5 name=limpar_anos_antigos)>]
+2026-01-15 10:03:30 - profin - INFO - Aplicação iniciada — scheduler ativo.
+2026-01-15 10:04:59 - profin.scheduler - INFO - Scheduler parado
+2026-01-15 10:04:59 - profin - INFO - Aplicação encerrando — scheduler parado.
+2026-01-15 10:05:00 - profin - INFO - Banco de dados 'profin_db' já existe.
+2026-01-15 10:05:00 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:05:01 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:05:01 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:05:01 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:05:01 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:05:01 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:05:01 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:05:01 - profin.scheduler - INFO - Scheduler iniciado com jobs: [<Job (id=c1d0b829a29d423699ebaf462dc208a3 name=arquivar_anos_automaticamente)>, <Job (id=07f0edc933d44814a2c174ccfd2d4d92 name=limpar_anos_antigos)>]
+2026-01-15 10:05:01 - profin - INFO - Aplicação iniciada — scheduler ativo.
+2026-01-15 10:05:01 - profin.scheduler - INFO - Scheduler parado
+2026-01-15 10:05:01 - profin - INFO - Aplicação encerrando — scheduler parado.
+2026-01-15 10:05:02 - profin - INFO - Banco de dados 'profin_db' já existe.
+2026-01-15 10:05:02 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:05:03 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:05:03 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:05:03 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:05:03 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:05:03 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:05:03 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:05:03 - profin.scheduler - INFO - Scheduler iniciado com jobs: [<Job (id=542f21970cd7497096182c182c8d7edd name=arquivar_anos_automaticamente)>, <Job (id=be30886dc42c4835aee8e09b4c12529c name=limpar_anos_antigos)>]
+2026-01-15 10:05:03 - profin - INFO - Aplicação iniciada — scheduler ativo.
+2026-01-15 10:07:18 - profin.scheduler - INFO - Scheduler parado
+2026-01-15 10:07:18 - profin - INFO - Aplicação encerrando — scheduler parado.
+2026-01-15 10:07:19 - profin - INFO - Banco de dados 'profin_db' já existe.
+2026-01-15 10:07:19 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:07:20 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:07:20 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:07:20 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:07:20 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:07:20 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:07:20 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:07:20 - profin.scheduler - INFO - Scheduler iniciado com jobs: [<Job (id=cc20e8d355ad4eb7bc4fb7398d2092d6 name=arquivar_anos_automaticamente)>, <Job (id=2b10ddc2b4d54cd4bb529635cd71bcd4 name=limpar_anos_antigos)>]
+2026-01-15 10:07:20 - profin - INFO - Aplicação iniciada — scheduler ativo.
+2026-01-15 10:07:20 - profin.scheduler - INFO - Scheduler parado
+2026-01-15 10:07:20 - profin - INFO - Aplicação encerrando — scheduler parado.
+2026-01-15 10:07:21 - profin - INFO - Banco de dados 'profin_db' já existe.
+2026-01-15 10:07:21 - profin - INFO - Conectando ao banco: postgresql+psycopg2://postgres:****@localhost:5432/profin_db
+2026-01-15 10:07:22 - profin - INFO - Validando configurações da aplicação...
+2026-01-15 10:07:22 - profin - INFO - Configurações do banco de dados validadas
+2026-01-15 10:07:22 - profin - WARNING - SECRET_KEY não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:07:22 - profin - WARNING - ADMIN_PASSWORD não configurada. Usando valor padrão (NÃO SEGURO PARA PRODUÇÃO)
+2026-01-15 10:07:22 - profin - INFO - Configurações de autenticação validadas
+2026-01-15 10:07:22 - profin - INFO - Todas as configurações validadas com sucesso
+2026-01-15 10:07:22 - profin.scheduler - INFO - Scheduler iniciado com jobs: [<Job (id=21c823bb39d649a0ad37108ed5557d6b name=arquivar_anos_automaticamente)>, <Job (id=c9c3f868d0bf40af8ef41508af2a30c7 name=limpar_anos_antigos)>]
+2026-01-15 10:07:22 - profin - INFO - Aplicação iniciada — scheduler ativo.
+2026-01-15 10:10:02 - profin - INFO - → GET / [Client: 127.0.0.1]
+2026-01-15 10:10:02 - profin - INFO - ← GET / [Status: 404] [Time: 0.003s]
+2026-01-15 10:10:02 - profin - INFO - → GET /favicon.ico [Client: 127.0.0.1]
+2026-01-15 10:10:02 - profin - INFO - ← GET /favicon.ico [Status: 404] [Time: 0.002s]
+2026-01-15 10:10:07 - profin - INFO - → GET /docs [Client: 127.0.0.1]
+2026-01-15 10:10:07 - profin - INFO - ← GET /docs [Status: 200] [Time: 0.002s]
+2026-01-15 10:10:08 - profin - INFO - → GET /openapi.json [Client: 127.0.0.1]
+2026-01-15 10:10:08 - profin - INFO - ← GET /openapi.json [Status: 200] [Time: 0.122s]
