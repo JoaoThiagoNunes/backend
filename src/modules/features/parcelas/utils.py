@@ -99,6 +99,11 @@ def dividir_cota_em_parcelas_por_ensino(
     tipo_cota: Optional[str] = None
 ) -> Dict[str, Dict[str, int]]:
 
+    # PREUNI sempre vai 100% para o ensino médio, independente da escola ter fundamental
+    if tipo_cota == "preuni":
+        porcentagem_fundamental = 0.0
+        porcentagem_medio = 100.0
+
     saldo_reprogramado = 0.0
     if escola and tipo_cota:
         if tipo_cota == "gestao" and escola.saldo_reprogramado_gestao:
