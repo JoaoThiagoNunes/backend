@@ -23,6 +23,7 @@ from src.modules.shared.base import Base
 from src.modules.api import (
     AnoLetivo,
     Upload,
+    ContextoAtivo,
     Escola,
     CalculosProfin,
     ParcelasProfin,

@@ -20,6 +20,7 @@ class AnoLetivo(Base):
     
     # Relacionamento: Um ano letivo tem vários uploads
     uploads = relationship("Upload", back_populates="ano_letivo", cascade="all, delete-orphan")
+    contexto_ativo = relationship("ContextoAtivo", back_populates="ano_letivo", uselist=False)
     
     def __repr__(self):
         return f"<AnoLetivo(id={self.id}, ano={self.ano}, status='{self.status.value}')>"

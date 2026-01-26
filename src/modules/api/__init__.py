@@ -6,7 +6,7 @@ from src.modules.features.parcelas.routes import parcelas_router
 from src.modules.features.projetos.routes import projeto_router
 
 from src.modules.features.anos import AnoLetivo
-from src.modules.features.uploads import Upload
+from src.modules.features.uploads import Upload, ContextoAtivo
 from src.modules.features.escolas import Escola
 from src.modules.features.calculos import CalculosProfin
 from src.modules.features.parcelas import ParcelasProfin, LiberacoesParcela
@@ -21,6 +21,7 @@ __all__ = [
     "projeto_router",
     "AnoLetivo",
     "Upload",
+    "ContextoAtivo",
     "Escola",
     "CalculosProfin",
     "ParcelasProfin",

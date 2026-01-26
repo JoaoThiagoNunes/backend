@@ -47,8 +47,7 @@ class Escola(Base):
     saldo_reprogramado_gestao = Column(Float, default=0.0)
     saldo_reprogramado_merenda = Column(Float, default=0.0)
     
-    # Estado de liberação e numeração da folha
-    estado_liberacao = Column(Boolean, default=False, nullable=False, index=True)
+    # Numeração da folha (estado_liberacao é derivado das liberações)
     numeracao_folha = Column(String(50), nullable=True, index=True)
     
     # Data de criação

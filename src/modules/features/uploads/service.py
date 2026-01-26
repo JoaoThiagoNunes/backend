@@ -7,6 +7,7 @@ from src.core.database import transaction
 from src.core.exceptions import UploadNaoEncontradoException, EscolaNaoEncontradaException
 from src.modules.features.uploads.repository import UploadRepository
 from src.modules.features.escolas.repository import EscolaRepository
+from src.modules.features.escolas.utils import escola_esta_liberada
 from src.modules.schemas.upload import UploadListItem, UploadDetailInfo, EscolaPlanilhaInfo
 from src.modules.features.anos import obter_ano_letivo
 from .utils import obter_ou_criar_upload_ativo
@@ -17,11 +18,18 @@ from src.modules.shared.utils import obter_texto, obter_quantidade, obter_valor_
 class UploadService:
     @staticmethod
     def obter_upload_unico(db: Session, ano_letivo_id: Optional[int] = None) -> UploadListItem:
-        repo = UploadRepository(db)
-        upload = repo.find_latest(ano_letivo_id)
+        from src.modules.features.uploads.repository import ContextoAtivoRepository
+        
+        _, ano_id = obter_ano_letivo(db, ano_letivo_id)
+        contexto_repo = ContextoAtivoRepository(db)
+        upload = contexto_repo.find_upload_ativo(ano_id)
         
         if not upload:
-            raise UploadNaoEncontradoException(ano_letivo_id=ano_letivo_id)
+            # Fallback para o mais recente se não houver contexto ativo
+            upload_repo = UploadRepository(db)
+            upload = upload_repo.find_latest(ano_id)
+            if not upload:
+                raise UploadNaoEncontradoException(ano_letivo_id=ano_id)
 
         return UploadListItem(
             success=True,
@@ -30,8 +38,7 @@ class UploadService:
             ano_letivo=upload.ano_letivo.ano,
             filename=upload.filename,
             upload_date=upload.upload_date,
-            total_escolas=upload.total_escolas,
-            is_active=upload.is_active
+            total_escolas=upload.total_escolas
         )
     
     @staticmethod
@@ -58,10 +65,17 @@ class UploadService:
             escolas = [escola]
         else:
             # Caso contrário, usar a lógica anterior com ano_letivo_id
+            from src.modules.features.uploads.repository import ContextoAtivoRepository
+            
             _, ano_id = obter_ano_letivo(db, ano_letivo_id)
-            upload = upload_repo.find_by_ano_letivo(ano_id)
+            contexto_repo = ContextoAtivoRepository(db)
+            upload = contexto_repo.find_upload_ativo(ano_id)
+            
             if not upload:
-                raise UploadNaoEncontradoException(ano_letivo_id=ano_id)
+                # Fallback para o mais recente se não houver contexto ativo
+                upload = upload_repo.find_latest(ano_id)
+                if not upload:
+                    raise UploadNaoEncontradoException(ano_letivo_id=ano_id)
             
             # Buscar todas as escolas do upload
             escolas = escola_repo.find_by_upload_id(upload.id)
@@ -95,7 +109,7 @@ class UploadService:
                     "quantidade_projetos_aprovados": escola.quantidade_projetos_aprovados,
                     "repasse_por_area": escola.repasse_por_area,
                     "indigena_quilombola": escola.indigena_quilombola,
-                    "estado_liberacao": escola.estado_liberacao,
+                    "estado_liberacao": escola_esta_liberada(escola),
                     "numeracao_folha": escola.numeracao_folha,
                     "created_at": escola.created_at,
                     "codigo_ept": escola.codigo_ept,

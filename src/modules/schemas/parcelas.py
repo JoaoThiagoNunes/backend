@@ -67,14 +67,11 @@ class ParcelasEscolaResponse(BaseModel):
     estado_liberacao: Optional[bool] = False
     numeracao_folha: Optional[str] = None
 
-class AtualizarLiberacaoRequest(BaseModel):
-    estado_liberacao: bool
-
 class AtualizarFolhaRequest(BaseModel):
     numeracao_folha: Optional[str] = None
 
 class AtualizarEscolaRequest(BaseModel):
-    estado_liberacao: Optional[bool] = None
+    # estado_liberacao não pode ser atualizado diretamente - é derivado das liberações
     numeracao_folha: Optional[str] = None
 
 class EscolaAtualizadaResponse(BaseModel):

@@ -10,7 +10,6 @@ class UploadListItem(BaseModel):
     filename: str
     upload_date: datetime
     total_escolas: int
-    is_active: bool
 
 class EscolaPlanilhaInfo(BaseModel):
     dados_planilha: Dict[str, Any]

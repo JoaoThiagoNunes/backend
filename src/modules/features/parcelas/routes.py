@@ -8,6 +8,7 @@ from src.modules.features.anos import obter_ano_letivo
 from src.modules.features.parcelas import calcular_porcentagens_ensino
 from src.modules.features.calculos import CalculosProfin, TipoCota, TipoEnsino
 from src.modules.features.escolas import Escola
+from src.modules.features.escolas.utils import escola_esta_liberada
 from src.modules.features.parcelas import ParcelasProfin, LiberacoesParcela, ParcelaService
 from src.modules.features.uploads import Upload
 from src.modules.schemas.parcelas import (
@@ -22,7 +23,6 @@ from src.modules.schemas.parcelas import (
     AtualizarLiberacaoParcelaRequest,
     ParcelasEscolaResponse,
     ParcelaDetalhe,
-    AtualizarLiberacaoRequest,
     AtualizarFolhaRequest,
     AtualizarEscolaRequest,
     EscolaAtualizadaResponse,
@@ -373,7 +373,7 @@ def obter_parcelas_escola(
         porcentagem_fundamental=pct_fundamental,
         porcentagem_medio=pct_medio,
         parcelas=parcelas_detalhes,
-        estado_liberacao=escola.estado_liberacao,
+        estado_liberacao=escola_esta_liberada(escola),
         numeracao_folha=escola.numeracao_folha
     )
 
@@ -491,7 +491,7 @@ def separar_valores_em_parcelas(
                                     ParcelaPorCota(**cota_data)
                                     for cota_data in dados["parcelas_por_cota"].values()
                                 ],
-                                estado_liberacao=dados["escola"].estado_liberacao,
+                                estado_liberacao=escola_esta_liberada(dados["escola"]),
                                 numeracao_folha=dados["escola"].numeracao_folha
                             )
                         )
@@ -846,47 +846,6 @@ def remover_liberacao_parcela(
 
 
 
-@parcelas_router.put("/escola/{escola_id}/liberacao", response_model=EscolaAtualizadaResponse, tags=["Parcelas"])
-def atualizar_estado_liberacao(
-    escola_id: int,
-    request: AtualizarLiberacaoRequest,
-    db: Session = Depends(get_db)
-) -> EscolaAtualizadaResponse:
-    try:
-        escola = db.query(Escola).filter(Escola.id == escola_id).first()
-        if not escola:
-            raise HTTPException(status_code=404, detail="Escola não encontrada")
-        
-        rows_updated = db.query(Escola)\
-            .filter(Escola.id == escola_id)\
-            .update({"estado_liberacao": request.estado_liberacao}, synchronize_session=False)
-        
-        if rows_updated == 0:
-            raise HTTPException(status_code=404, detail="Escola não encontrada para atualização")
-        
-        db.commit()
-        
-        db.expire_all()
-        escola = db.query(Escola).filter(Escola.id == escola_id).first()
-        
-        logger.info(f"Estado de liberação atualizado para escola {escola_id}: {request.estado_liberacao}")
-        
-        return EscolaAtualizadaResponse(
-            success=True,
-            message=f"Estado de liberação atualizado para {'liberado' if request.estado_liberacao else 'não liberado'}",
-            escola_id=escola.id,
-            nome_uex=escola.nome_uex,
-            estado_liberacao=escola.estado_liberacao,
-            numeracao_folha=escola.numeracao_folha
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.exception(f"Erro ao atualizar estado de liberação da escola {escola_id}")
-        raise HTTPException(status_code=500, detail=f"Erro ao atualizar estado de liberação: {str(e)}")
-
-
 @parcelas_router.put("/escola/{escola_id}/folha", response_model=EscolaAtualizadaResponse, tags=["Parcelas"])
 def atualizar_numeracao_folha(
     escola_id: int,
@@ -917,7 +876,7 @@ def atualizar_numeracao_folha(
             message=f"Numeração da folha atualizada para '{request.numeracao_folha or 'nenhum'}'",
             escola_id=escola.id,
             nome_uex=escola.nome_uex,
-            estado_liberacao=escola.estado_liberacao,
+            estado_liberacao=escola_esta_liberada(escola),
             numeracao_folha=escola.numeracao_folha
         )
     except HTTPException:
@@ -942,9 +901,9 @@ def atualizar_escola(
         update_dict = {}
         atualizacoes = []
         
+        # estado_liberacao não pode mais ser atualizado diretamente - é derivado das liberações
         if request.estado_liberacao is not None:
-            update_dict["estado_liberacao"] = request.estado_liberacao
-            atualizacoes.append(f"estado_liberacao={request.estado_liberacao}")
+            logger.warning(f"Tentativa de atualizar estado_liberacao diretamente para escola {escola_id} - ignorado (campo derivado)")
         
         if request.numeracao_folha is not None:
             update_dict["numeracao_folha"] = request.numeracao_folha
@@ -953,7 +912,7 @@ def atualizar_escola(
         if not atualizacoes:
             raise HTTPException(
                 status_code=400,
-                detail="Nenhum campo fornecido para atualização. Informe 'estado_liberacao' e/ou 'numeracao_folha'"
+                detail="Nenhum campo fornecido para atualização. Informe 'numeracao_folha' (estado_liberacao é derivado das liberações)"
             )
         
         rows_updated = db.query(Escola)\
@@ -975,7 +934,7 @@ def atualizar_escola(
             message=f"Escola atualizada: {', '.join(atualizacoes)}",
             escola_id=escola.id,
             nome_uex=escola.nome_uex,
-            estado_liberacao=escola.estado_liberacao,
+            estado_liberacao=escola_esta_liberada(escola),
             numeracao_folha=escola.numeracao_folha
         )
     except HTTPException:
