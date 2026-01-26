@@ -39,7 +39,9 @@ class ProjetoRepository(BaseRepository[LiberacoesProjeto]):
         if liberada is not None:
             query = query.filter(LiberacoesProjeto.liberada == liberada)
         
-        return query.options(joinedload(LiberacoesProjeto.escola)).all()
+        return query.options(
+            joinedload(LiberacoesProjeto.escola).joinedload(Escola.calculos)
+        ).all()
     
     def find_by_folha(
         self,
@@ -51,7 +53,9 @@ class ProjetoRepository(BaseRepository[LiberacoesProjeto]):
         )
         if liberada:
             query = query.filter(LiberacoesProjeto.liberada == True)
-        return query.options(joinedload(LiberacoesProjeto.escola)).order_by(
+        return query.options(
+            joinedload(LiberacoesProjeto.escola).joinedload(Escola.calculos)
+        ).order_by(
             Escola.nome_uex
         ).all()
     
@@ -79,7 +83,9 @@ class ProjetoRepository(BaseRepository[LiberacoesProjeto]):
         if escola_id is not None:
             query = query.filter(LiberacoesProjeto.escola_id == escola_id)
         
-        return query.options(joinedload(LiberacoesProjeto.escola)).order_by(
+        return query.options(
+            joinedload(LiberacoesProjeto.escola).joinedload(Escola.calculos)
+        ).order_by(
             LiberacoesProjeto.numero_folha.nulls_last(),
             Escola.nome_uex
         ).all()

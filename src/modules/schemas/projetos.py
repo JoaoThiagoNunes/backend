@@ -11,6 +11,9 @@ class LiberacaoProjetoInfo(BaseModel):
     numero_folha: Optional[int]
     data_liberacao: Optional[datetime]
     valor_projetos_aprovados: float
+    quantidade_projetos_direito: Optional[int] = None
+    quantidade_projetos_a_pagar: Optional[int] = None
+    quantidade_projetos_aprovados: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

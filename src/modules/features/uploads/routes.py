@@ -24,12 +24,15 @@ def obter_upload_unico(
 
 @upload_router.get("/detalhes", response_model=UploadDetailResponse, tags=["Uploads"])
 def obter_upload_detalhado(
+    id: Optional[int] = Query(
+        None, description="ID da escola que deseja consultar"
+    ),
     ano_letivo_id: Optional[int] = Query(
         None, description="Ano letivo que deseja consultar (padrão: ano ativo)"
     ),
     db: Session = Depends(get_db)
 ) -> UploadDetailResponse:
-    resultado = UploadService.obter_upload_detalhado(db, ano_letivo_id)
+    resultado = UploadService.obter_upload_detalhado(db, escola_id=id, ano_letivo_id=ano_letivo_id)
     
     return UploadDetailResponse(
         success=True,

@@ -4,7 +4,7 @@ from io import BytesIO
 import pandas as pd
 from src.core.logging_config import logger
 from src.core.database import transaction
-from src.core.exceptions import UploadNaoEncontradoException
+from src.core.exceptions import UploadNaoEncontradoException, EscolaNaoEncontradaException
 from src.modules.features.uploads.repository import UploadRepository
 from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.schemas.upload import UploadListItem, UploadDetailInfo, EscolaPlanilhaInfo
@@ -35,16 +35,37 @@ class UploadService:
         )
     
     @staticmethod
-    def obter_upload_detalhado(db: Session, ano_letivo_id: Optional[int] = None) -> Dict[str, Any]:
-        _, ano_id = obter_ano_letivo(db, ano_letivo_id)
-        
-        upload_repo = UploadRepository(db)
-        upload = upload_repo.find_by_ano_letivo(ano_id)
-        if not upload:
-            raise UploadNaoEncontradoException(ano_letivo_id=ano_id)
-        
+    def obter_upload_detalhado(
+        db: Session, 
+        escola_id: Optional[int] = None,
+        ano_letivo_id: Optional[int] = None
+    ) -> Dict[str, Any]:
         escola_repo = EscolaRepository(db)
-        escolas = escola_repo.find_by_upload_id(upload.id)
+        upload_repo = UploadRepository(db)
+        
+        # Se escola_id for fornecido, buscar a escola diretamente
+        if escola_id is not None:
+            escola = escola_repo.find_by_id(escola_id)
+            if not escola:
+                raise EscolaNaoEncontradaException(escola_id=escola_id)
+            
+            # Buscar o upload da escola
+            upload = upload_repo.find_by_id(escola.upload_id)
+            if not upload:
+                raise UploadNaoEncontradoException(upload_id=escola.upload_id)
+            
+            # Retornar apenas a escola filtrada
+            escolas = [escola]
+        else:
+            # Caso contrário, usar a lógica anterior com ano_letivo_id
+            _, ano_id = obter_ano_letivo(db, ano_letivo_id)
+            upload = upload_repo.find_by_ano_letivo(ano_id)
+            if not upload:
+                raise UploadNaoEncontradoException(ano_letivo_id=ano_id)
+            
+            # Buscar todas as escolas do upload
+            escolas = escola_repo.find_by_upload_id(upload.id)
+        
         escolas_planilha: List[EscolaPlanilhaInfo] = []
 
         for escola in escolas:

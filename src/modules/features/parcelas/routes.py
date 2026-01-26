@@ -142,43 +142,6 @@ def listar_liberacoes_por_escola(
         raise HTTPException(status_code=500, detail=f"Erro ao listar liberações por escola: {str(e)}")
 
 
-@parcelas_router.get("/folha/{numero_parcela}/{numero_folha}", response_model=ListarLiberacoesResponse, tags=["Parcelas"])
-def listar_liberacoes_por_folha(
-    numero_parcela: int,
-    numero_folha: int,
-    db: Session = Depends(get_db)
-) -> ListarLiberacoesResponse:
-    try:
-        if numero_parcela not in (1, 2):
-            raise HTTPException(status_code=400, detail="numero_parcela deve ser 1 ou 2")
-
-        if numero_folha <= 0:
-            raise HTTPException(status_code=400, detail="numero_folha deve ser maior que 0")
-
-        liberacoes = db.query(LiberacoesParcela)
-        liberacoes = liberacoes.options(joinedload(LiberacoesParcela.escola))
-        liberacoes = liberacoes.filter(
-            LiberacoesParcela.numero_parcela == numero_parcela,
-            LiberacoesParcela.numero_folha == numero_folha,
-            LiberacoesParcela.liberada.is_(True)
-        )
-        liberacoes = liberacoes.order_by(Escola.nome_uex).all()
-
-        liberacoes_info = [ParcelaService.mapear_liberacao_parcela(l) for l in liberacoes]
-
-        return ListarLiberacoesResponse(
-            success=True,
-            total=len(liberacoes_info),
-            liberacoes=liberacoes_info
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Erro ao listar liberações da folha")
-        raise HTTPException(status_code=500, detail=f"Erro ao listar liberações da folha: {str(e)}")
-
-
 @parcelas_router.get("/previsao", response_model=PrevisaoLiberacaoResponse, tags=["Parcelas"])
 def previsao_liberacao_escolas(
     numero_parcela: int = Query(..., ge=1, le=2),

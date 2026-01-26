@@ -22,12 +22,12 @@ class ProjetoService:
     def calcular_valor_projetos_aprovados(escola: Escola, calculo: Optional[CalculosProfin]) -> float:
         quantidade_planilha = max(escola.quantidade_projetos_aprovados or 0, 0)
         quantidade_direito = ProjetoService.obter_quantidade_direito_projeto(calculo)
-
+        
         if quantidade_direito > 0:
             quantidade_pagar = min(quantidade_planilha, quantidade_direito)
         else:
             quantidade_pagar = 0
-
+        
         valor_calculado = quantidade_pagar * VALOR_PROJETO_UNITARIO
         return round(valor_calculado, 2)
     
@@ -35,12 +35,11 @@ class ProjetoService:
     def obter_quantidade_direito_projeto(calculo: Optional[CalculosProfin]) -> int:
         if not calculo or calculo.profin_projeto is None:
             return 0
-
-        valor = calculo.profin_projeto or 0.0
-        if valor <= 0:
+        
+        if calculo.profin_projeto <= 0:
             return 0
-
-        return int(max(valor, 0))
+    
+        return int(calculo.profin_projeto)
     
     @staticmethod
     def calcular_quantidade_projetos_a_pagar(escola: Escola, calculo: Optional[CalculosProfin]) -> int:
@@ -54,7 +53,17 @@ class ProjetoService:
     @staticmethod
     def mapear_liberacao_projeto(liberacao: LiberacoesProjeto) -> LiberacaoProjetoInfo:
         escola = liberacao.escola
-        return LiberacaoProjetoInfo(
+        
+        # Calcular quantidades
+        calculo = escola.calculos if escola else None
+        quantidade_direito = ProjetoService.obter_quantidade_direito_projeto(calculo)
+        quantidade_a_pagar = ProjetoService.calcular_quantidade_projetos_a_pagar(escola, calculo) if escola else 0
+        quantidade_planilha = escola.quantidade_projetos_aprovados if escola else None
+        
+        # Calcular valor usando a comparação
+        valor_calculado = ProjetoService.calcular_valor_projetos_aprovados(escola, calculo) if escola else 0.0
+        
+        resultado = LiberacaoProjetoInfo(
             id=liberacao.id,
             escola_id=escola.id if escola else liberacao.escola_id,
             nome_uex=escola.nome_uex if escola else "",
@@ -62,10 +71,15 @@ class ProjetoService:
             liberada=liberacao.liberada,
             numero_folha=liberacao.numero_folha,
             data_liberacao=liberacao.data_liberacao,
-            valor_projetos_aprovados=liberacao.valor_projetos_aprovados,
+            valor_projetos_aprovados=valor_calculado,
+            quantidade_projetos_direito=quantidade_direito if quantidade_direito > 0 else None,
+            quantidade_projetos_a_pagar=quantidade_a_pagar if quantidade_a_pagar > 0 else None,
+            quantidade_projetos_aprovados=quantidade_planilha,
             created_at=liberacao.created_at,
             updated_at=liberacao.updated_at,
         )
+        
+        return resultado
     
     @staticmethod
     def obter_projetos_agrupados(
