@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Float, Integer, String, DateTime, ForeignKey, Boolean, UniqueConstraint
+from sqlalchemy import Column, Float, Integer, String, DateTime, ForeignKey,  UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from src.modules.shared.base import Base
@@ -54,9 +54,15 @@ class Escola(Base):
     created_at = Column(DateTime, default=datetime.now, nullable=False)
     
     # Relacionamentos
-    upload = relationship("Upload", back_populates="escolas")
-    calculos = relationship("CalculosProfin", back_populates="escola", 
-                          cascade="all, delete-orphan", uselist=False)
+    upload = relationship(
+        "Upload", 
+        back_populates="escolas"
+        )
+    calculos = relationship(
+        "CalculosProfin", back_populates="escola", 
+        cascade="all, delete-orphan", 
+        uselist=False
+        )
     liberacoes_parcelas = relationship(
         "LiberacoesParcela",
         back_populates="escola",
@@ -68,6 +74,11 @@ class Escola(Base):
         cascade="all, delete-orphan",
         uselist=False
     )
+    #complementos = relationship(
+    #    "ComplementoEscola",
+    #    back_populates="escola",
+    #    cascade="all, delete-orphan"
+    #)
     
     def __repr__(self):
         return f"<Escola(id={self.id}, nome='{self.nome_uex}', alunos={self.total_alunos})>"

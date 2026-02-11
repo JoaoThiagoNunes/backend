@@ -621,7 +621,7 @@ def separar_valores_em_parcelas(
                     }
                 
                 parcelas_por_cota.append(ParcelaPorCota(**parcela_por_cota_data))
-            escolas_processadas.append(
+                escolas_processadas.append(
                 EscolaParcelas(
                     escola_id=escola.id,
                     nome_uex=escola.nome_uex,
@@ -629,7 +629,7 @@ def separar_valores_em_parcelas(
                     porcentagem_fundamental=pct_fundamental,
                     porcentagem_medio=pct_medio,
                     parcelas_por_cota=parcelas_por_cota,
-                    estado_liberacao=escola.estado_liberacao,
+                    estado_liberacao=escola_esta_liberada(escola),
                     numeracao_folha=escola.numeracao_folha
                 )
             )

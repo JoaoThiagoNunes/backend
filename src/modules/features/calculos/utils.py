@@ -76,38 +76,6 @@ def calcular_profin_gestao(row: pd.Series) -> float:
     valor_total = VALOR_FIXO_GESTAO + valor_variavel + bonus
     return round(valor_total, 2)
 
-def calcular_complemento_gestao(row: pd.Series) -> float:
-    fund_inicial = obter_quantidade(row, "FUNDAMENTAL INICIAL")
-    fund_final = obter_quantidade(row, "FUNDAMENTAL FINAL")
-    fund_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
-    profissionalizante = obter_quantidade(row, "PROFISSIONALIZANTE")
-    profissionalizante_integrado = obter_quantidade(row, "PROFISSIONALIZANTE INTEGRADO")
-    alternancia = obter_quantidade(row, "ALTERNÂNCIA")
-    medio_integral = obter_quantidade(row, "ENSINO MÉDIO INTEGRAL")
-    medio_regular = obter_quantidade(row, "ENSINO MÉDIO REGULAR")
-    esp_fund_regular = obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR")
-    esp_fund_integral = obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL")
-    esp_medio_parcial = obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL")
-    esp_medio_integral = obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL")
- 
-    valor_variavel = (
-        (fund_inicial * PESO_FUNDAMENTAL_INICIAL) +
-        (fund_final * PESO_FUNDAMENTAL_FINAL) +
-        (fund_integral * PESO_FUNDAMENTAL_INTEGRAL) +
-        (profissionalizante * PESO_PROFISSIONALIZANTE) +
-        (profissionalizante_integrado * PESO_PROFISSIONALIZANTE_INTEGRADO) +
-        ((alternancia * PESO_ALTERNANCIA) * MULTIPLICADOR_ALTERNANCIA) +
-        (medio_integral * PESO_MEDIO_INTEGRAL) +
-        (medio_regular * PESO_MEDIO_REGULAR) +
-        ((esp_fund_regular * PESO_ESPECIAL_FUNDAMENTAL_REGULAR) * MULTIPLICADOR_ESPECIAL) +
-        ((esp_fund_integral * PESO_ESPECIAL_FUNDAMENTAL_INTEGRAL) * MULTIPLICADOR_ESPECIAL) +
-        ((esp_medio_parcial * PESO_ESPECIAL_MEDIO_PARCIAL) * MULTIPLICADOR_ESPECIAL) +
-        ((esp_medio_integral * PESO_ESPECIAL_MEDIO_INTEGRAL) * MULTIPLICADOR_ESPECIAL) 
-    ) * MULTIPLICADOR_GESTAO
- 
-    valor_total = valor_variavel 
-    return round(valor_total, 2)
-
 def calcular_profin_projeto(row: pd.Series) -> float:
     fund_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
     medio_integral = obter_quantidade(row, "ENSINO MÉDIO INTEGRAL")
