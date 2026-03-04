@@ -65,20 +65,21 @@ class Escola(Base):
         )
     liberacoes_parcelas = relationship(
         "LiberacoesParcela",
-        back_populates="escola",
-        cascade="all, delete-orphan"
+        back_populates="escola"
+        # Removido cascade para preservar liberações ao deletar/atualizar escolas
     )
     liberacoes_projetos = relationship(
         "LiberacoesProjeto",
         back_populates="escola",
-        cascade="all, delete-orphan",
         uselist=False
+        # Removido cascade para preservar liberações ao deletar/atualizar escolas
     )
-    #complementos = relationship(
-    #    "ComplementoEscola",
-    #    back_populates="escola",
-    #    cascade="all, delete-orphan"
-    #)
+    complementos = relationship(
+        "ComplementoEscola",
+        back_populates="escola",
+        cascade="all, delete-orphan"
+        
+    )
     
     def __repr__(self):
         return f"<Escola(id={self.id}, nome='{self.nome_uex}', alunos={self.total_alunos})>"

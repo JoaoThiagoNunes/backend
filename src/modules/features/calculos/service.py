@@ -73,18 +73,60 @@ class CalculoService:
         logger.info(f"CALCULANDO VALORES - ANO LETIVO: {ano_letivo.ano}")
         logger.info("="*60)
         
+        # Buscar apenas escolas do upload ativo
+        from src.modules.features.uploads.repository import ContextoAtivoRepository, UploadRepository
+        
+        contexto_repo = ContextoAtivoRepository(db)
+        upload_ativo = contexto_repo.find_upload_ativo(ano_letivo_id)
+        
+        if not upload_ativo:
+            # Fallback para o upload mais recente se não houver contexto ativo
+            upload_repo = UploadRepository(db)
+            upload_ativo = upload_repo.find_latest(ano_letivo_id)
+            if not upload_ativo:
+                raise EscolaNaoEncontradaException(ano_letivo=ano_letivo.ano)
+        
+        logger.info(f"Usando upload ativo: ID {upload_ativo.id} - {upload_ativo.filename}")
+        
         escola_repo = EscolaRepository(db)
-        escolas = escola_repo.find_by_ano_letivo(ano_letivo_id)
+        escolas = escola_repo.find_by_upload_id(upload_ativo.id)
         
         if not escolas:
             raise EscolaNaoEncontradaException(ano_letivo=ano_letivo.ano)
         
+        logger.info(f"Processando {len(escolas)} escola(s) do upload ativo")
+        
         calculo_repo = CalculoRepository(db)
         escolas_calculadas = []
         valor_total_geral = 0.0
-        upload_id = escolas[0].upload_id if escolas else None
+        upload_id = upload_ativo.id
         
         with transaction(db):
+            # Limpar cálculos de escolas que não estão no upload ativo
+            # Isso garante que não acumulamos cálculos de uploads antigos
+            escolas_ids_upload_ativo = {e.id for e in escolas}
+            
+            # Buscar todos os cálculos do ano letivo
+            calculos_ano = calculo_repo.find_by_ano_letivo(ano_letivo_id)
+            
+            # Deletar cálculos de escolas que não estão no upload ativo
+            from src.modules.features.parcelas.repository import ParcelaRepository
+            parcela_repo = ParcelaRepository(db)
+            
+            calculos_removidos = 0
+            for calculo in calculos_ano:
+                if calculo.escola_id not in escolas_ids_upload_ativo:
+                    # Deletar parcelas primeiro
+                    parcela_repo.delete_by_calculo_id(calculo.id)
+                    # Deletar cálculo
+                    calculo_repo.delete(calculo)
+                    calculos_removidos += 1
+            
+            if calculos_removidos > 0:
+                logger.info(f"Removidos {calculos_removidos} calculo(s) de escolas fora do upload ativo")
+                db.flush()
+            
+            # Processar apenas escolas do upload ativo
             for escola_obj in escolas:
                 row_data = {
                     "TOTAL": escola_obj.total_alunos,
@@ -123,40 +165,37 @@ class CalculoService:
                     ]), 2)
                 
 
-                calculo_obj = calculo_repo.find_by_escola_id(escola_obj.id)
+                # Verificar se já existe cálculo para esta escola
+                calculo_existente = calculo_repo.find_by_escola_id(escola_obj.id)
                 
-                if calculo_obj:
-                    # Atualizar cálculo existente
-                    calculo_repo.update(
-                        calculo_obj,
-                        profin_gestao=cotas["profin_gestao"],
-                        profin_projeto=cotas["profin_projeto"],
-                        profin_kit_escolar=cotas["profin_kit_escolar"],
-                        profin_uniforme=cotas["profin_uniforme"],
-                        profin_merenda=cotas["profin_merenda"],
-                        profin_sala_recurso=cotas["profin_sala_recurso"],
-                        # profin_permanente=cotas["profin_permanente"], # Desativado temporariamente
-                        # profin_climatizacao=cotas["profin_climatizacao"], # Desativado temporariamente
-                        profin_preuni=cotas["profin_preuni"],
-                        valor_total=cotas["valor_total"],
-                        calculated_at=datetime.now()
-                    )
-                else:
-                    # Criar novo cálculo
-                    calculo_obj = calculo_repo.create(
-                        escola_id=escola_obj.id,
-                        profin_gestao=cotas["profin_gestao"],
-                        profin_projeto=cotas["profin_projeto"],
-                        profin_kit_escolar=cotas["profin_kit_escolar"],
-                        profin_uniforme=cotas["profin_uniforme"],
-                        profin_merenda=cotas["profin_merenda"],
-                        profin_sala_recurso=cotas["profin_sala_recurso"],
-                        # profin_permanente=cotas["profin_permanente"], # Desativado temporariamente
-                        # profin_climatizacao=cotas["profin_climatizacao"], # Desativado temporariamente
-                        profin_preuni=cotas["profin_preuni"],
-                        valor_total=cotas["valor_total"],
-                        calculated_at=datetime.now()
-                    )
+                if calculo_existente:
+                    # Deletar parcelas explicitamente antes de deletar cálculo
+                    # Isso garante substituição completa mesmo se cascade não funcionar
+                    from src.modules.features.parcelas.repository import ParcelaRepository
+                    parcela_repo = ParcelaRepository(db)
+                    parcela_repo.delete_by_calculo_id(calculo_existente.id)
+                    
+                    # Deletar cálculo existente antes de criar novo (substituição completa)
+                    # Isso garante que ParcelasProfin sejam deletadas via cascade também
+                    calculo_repo.delete(calculo_existente)
+                    db.flush()  # Garantir que a deleção foi commitada antes de criar novo
+                
+                # Criar novo cálculo (sempre criar novo após deletar ou se não existir)
+                # A constraint unique no banco garantirá que não haverá duplicatas
+                calculo_obj = calculo_repo.create(
+                    escola_id=escola_obj.id,
+                    profin_gestao=cotas["profin_gestao"],
+                    profin_projeto=cotas["profin_projeto"],
+                    profin_kit_escolar=cotas["profin_kit_escolar"],
+                    profin_uniforme=cotas["profin_uniforme"],
+                    profin_merenda=cotas["profin_merenda"],
+                    profin_sala_recurso=cotas["profin_sala_recurso"],
+                    # profin_permanente=cotas["profin_permanente"], # Desativado temporariamente
+                    # profin_climatizacao=cotas["profin_climatizacao"], # Desativado temporariamente
+                    profin_preuni=cotas["profin_preuni"],
+                    valor_total=cotas["valor_total"],
+                    calculated_at=datetime.now()
+                )
                 
                 escola_data = {
                     "id": escola_obj.id,

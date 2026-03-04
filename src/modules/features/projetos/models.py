@@ -15,7 +15,7 @@ class LiberacoesProjeto(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    escola_id = Column(Integer, ForeignKey("escolas.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    escola_id = Column(Integer, ForeignKey("escolas.id", ondelete="RESTRICT"), nullable=False, unique=True, index=True)
     liberada = Column(Boolean, default=False, nullable=False, index=True)
     numero_folha = Column(Integer, nullable=True, index=True)
     data_liberacao = Column(DateTime, nullable=True)

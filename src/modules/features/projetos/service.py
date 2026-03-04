@@ -88,11 +88,35 @@ class ProjetoService:
     ) -> RepasseResumoResponse:
         _, ano_id = obter_ano_letivo(db, ano_letivo_id)
 
-        escola_repo = EscolaRepository(db)
-        escolas = escola_repo.find_by_ano_letivo_with_relations(
-            ano_id,
-            load_calculos=True,
-            load_liberacoes_projetos=True
+        # Buscar upload ativo para filtrar apenas escolas do upload ativo
+        from src.modules.features.uploads.repository import ContextoAtivoRepository, UploadRepository
+        contexto_repo = ContextoAtivoRepository(db)
+        upload_ativo = contexto_repo.find_upload_ativo(ano_id)
+        
+        if not upload_ativo:
+            # Fallback para o mais recente se não houver contexto ativo
+            upload_repo = UploadRepository(db)
+            upload_ativo = upload_repo.find_latest(ano_id)
+            if not upload_ativo:
+                return RepasseResumoResponse(
+                    success=True,
+                    total_parcelas=0,
+                    total_folhas=0,
+                    total_escolas=0,
+                    valor_total_reais=0.0,
+                    folhas=[],
+                )
+        
+        # Buscar apenas escolas do upload ativo com relacionamentos
+        from sqlalchemy.orm import joinedload
+        escolas = (
+            db.query(Escola)
+            .filter(Escola.upload_id == upload_ativo.id)
+            .options(
+                joinedload(Escola.calculos),
+                joinedload(Escola.liberacoes_projetos)
+            )
+            .all()
         )
 
         if not escolas:

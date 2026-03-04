@@ -17,6 +17,7 @@ from src.modules.api import (
     calculo_router,
     parcelas_router,
     projeto_router,
+    complemento_router,
     # Models (para registro no SQLAlchemy)
     AnoLetivo,
     Upload,
@@ -25,6 +26,8 @@ from src.modules.api import (
     ParcelasProfin,
     LiberacoesParcela,
     LiberacoesProjeto,
+    ComplementoUpload,
+    ComplementoEscola,
 )
 
 # Configurar logging antes de qualquer coisa
@@ -85,4 +88,5 @@ app.include_router(upload_router, prefix="/uploads")
 app.include_router(calculo_router, prefix="/calculos")
 app.include_router(parcelas_router, prefix="/parcelas")
 app.include_router(projeto_router, prefix="/projetos")
+app.include_router(complemento_router, prefix="/complemento")
 

@@ -29,12 +29,11 @@ class AnoLetivo(Base):
         back_populates="ano_letivo", 
         uselist=False
         )
-   
-    #complemento_uploads = relationship(
-    #    "ComplementoUpload",
-    #    back_populates="ano_letivo",
-    #    cascade="all, delete-orphan"
-    #)
+    complemento_uploads = relationship(
+        "ComplementoUpload",
+        back_populates="ano_letivo",
+        cascade="all, delete-orphan"
+    )
     
     def __repr__(self):
         return f"<AnoLetivo(id={self.id}, ano={self.ano}, status='{self.status.value}')>"

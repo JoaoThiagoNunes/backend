@@ -6,7 +6,6 @@ from src.core.logging_config import logger
 
 
 def obter_ou_criar_upload_ativo(db: Session, ano_letivo_id: int, filename: str) -> Upload:
-    """Cria um novo upload e atualiza o contexto ativo para apontar para ele"""
     upload_repo = UploadRepository(db)
     contexto_repo = ContextoAtivoRepository(db)
     

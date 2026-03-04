@@ -10,6 +10,7 @@ from src.modules.features.calculos import CalculosProfin, TipoCota, TipoEnsino
 from src.modules.features.escolas import Escola
 from src.modules.features.escolas.utils import escola_esta_liberada
 from src.modules.features.parcelas import ParcelasProfin, LiberacoesParcela, ParcelaService
+from src.modules.features.projetos import LiberacoesProjeto
 from src.modules.features.uploads import Upload
 from src.modules.schemas.parcelas import (
     SepararParcelasRequest,
@@ -74,8 +75,18 @@ def listar_liberacoes(
         query = db.query(LiberacoesParcela).join(Escola)
 
         if ano_letivo_id is not None:
-            query = query.join(Upload, Escola.upload_id == Upload.id)
-            query = query.filter(Upload.ano_letivo_id == ano_letivo_id)
+            # Filtrar apenas por escolas do upload ativo
+            from src.modules.features.uploads.repository import ContextoAtivoRepository, UploadRepository
+            
+            contexto_repo = ContextoAtivoRepository(db)
+            upload_ativo = contexto_repo.find_upload_ativo(ano_letivo_id)
+            
+            if not upload_ativo:
+                upload_repo = UploadRepository(db)
+                upload_ativo = upload_repo.find_latest(ano_letivo_id)
+            
+            if upload_ativo:
+                query = query.filter(Escola.upload_id == upload_ativo.id)
 
         if numero_parcela is not None:
             query = query.filter(LiberacoesParcela.numero_parcela == numero_parcela)
@@ -152,10 +163,24 @@ def previsao_liberacao_escolas(
     try:
         _, ano_id = obter_ano_letivo(db, ano_letivo_id)
 
+        # Buscar apenas escolas do upload ativo
+        from src.modules.features.uploads.repository import ContextoAtivoRepository, UploadRepository
+        
+        contexto_repo = ContextoAtivoRepository(db)
+        upload_ativo = contexto_repo.find_upload_ativo(ano_id)
+        
+        if not upload_ativo:
+            upload_repo = UploadRepository(db)
+            upload_ativo = upload_repo.find_latest(ano_id)
+            if not upload_ativo:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Nenhum upload encontrado para o ano letivo"
+                )
+
         escolas = db.query(Escola)
-        escolas = escolas.join(Upload, Escola.upload_id == Upload.id)
         escolas = escolas.options(joinedload(Escola.calculos).joinedload(CalculosProfin.parcelas))
-        escolas = escolas.filter(Upload.ano_letivo_id == ano_id)
+        escolas = escolas.filter(Escola.upload_id == upload_ativo.id)
         escolas = escolas.order_by(Escola.nome_uex).all()
 
         liberacoes = (
@@ -219,6 +244,21 @@ def obter_repasse(
 
         _, ano_id = obter_ano_letivo(db, ano_letivo_id)
 
+        # Buscar apenas liberações de escolas do upload ativo
+        from src.modules.features.uploads.repository import ContextoAtivoRepository, UploadRepository
+        
+        contexto_repo = ContextoAtivoRepository(db)
+        upload_ativo = contexto_repo.find_upload_ativo(ano_id)
+        
+        if not upload_ativo:
+            upload_repo = UploadRepository(db)
+            upload_ativo = upload_repo.find_latest(ano_id)
+            if not upload_ativo:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Nenhum upload encontrado para o ano letivo"
+                )
+
         liberacoes_query = db.query(LiberacoesParcela)
         liberacoes_query = liberacoes_query.filter(LiberacoesParcela.liberada.is_(True))
         liberacoes_query = liberacoes_query.options(
@@ -227,8 +267,7 @@ def obter_repasse(
             .joinedload(CalculosProfin.parcelas)
         )
         liberacoes_query = liberacoes_query.join(Escola)
-        liberacoes_query = liberacoes_query.join(Upload, Escola.upload_id == Upload.id)
-        liberacoes_query = liberacoes_query.filter(Upload.ano_letivo_id == ano_id)
+        liberacoes_query = liberacoes_query.filter(Escola.upload_id == upload_ativo.id)
 
         if numero_parcela is not None:
             liberacoes_query = liberacoes_query.filter(LiberacoesParcela.numero_parcela == numero_parcela)
@@ -324,58 +363,188 @@ def obter_parcelas_escola(
     escola_id: int,
     db: Session = Depends(get_db)
 ) -> ParcelasEscolaResponse:
-    escola = db.query(Escola).filter(Escola.id == escola_id).first()
-    if not escola:
-        raise HTTPException(status_code=404, detail="Escola não encontrada")
-    
-    calculo = db.query(CalculosProfin).filter(CalculosProfin.escola_id == escola_id).first()
-    if not calculo:
-        raise HTTPException(status_code=404, detail="Nenhum cálculo encontrado para esta escola")
-    
-    parcelas = (
-        db.query(ParcelasProfin)
-        .filter(
-            ParcelasProfin.calculo_id == calculo.id,
-            ParcelasProfin.tipo_cota.in_(_COTAS_PROCESSAR_ENUM),
+    try:
+        # Carregar escola com relacionamento Upload
+        escola = db.query(Escola).options(joinedload(Escola.upload)).filter(Escola.id == escola_id).first()
+        if not escola:
+            raise HTTPException(status_code=404, detail="Escola não encontrada")
+        
+        # Verificar se a escola pertence ao upload ativo do ano letivo dela
+        # Se não pertencer, verificar se tem liberações (escolas com liberações devem ser preservadas)
+        from src.modules.features.uploads.repository import ContextoAtivoRepository, UploadRepository
+        
+        contexto_repo = ContextoAtivoRepository(db)
+        upload_ativo = contexto_repo.find_upload_ativo(escola.upload.ano_letivo_id)
+        
+        if not upload_ativo:
+            upload_repo = UploadRepository(db)
+            upload_ativo = upload_repo.find_latest(escola.upload.ano_letivo_id)
+        
+        # Verificar se a escola pertence ao upload ativo ou tem liberações
+        escola_pertence_upload_ativo = upload_ativo and escola.upload_id == upload_ativo.id
+        
+        # Verificar se a escola tem liberações (parcelas ou projetos)
+        tem_liberacoes_parcelas = db.query(LiberacoesParcela).filter(LiberacoesParcela.escola_id == escola_id).first() is not None
+        tem_liberacoes_projetos = db.query(LiberacoesProjeto).filter(LiberacoesProjeto.escola_id == escola_id).first() is not None
+        escola_tem_liberacoes = tem_liberacoes_parcelas or tem_liberacoes_projetos
+        
+        # Se a escola não pertence ao upload ativo e não tem liberações, bloquear acesso
+        if not escola_pertence_upload_ativo and not escola_tem_liberacoes:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Escola não pertence ao upload ativo do ano letivo. Esta escola pertence ao upload ID {escola.upload_id}, mas o upload ativo é o ID {upload_ativo.id}."
+            )
+        
+        # Buscar cálculo da escola, priorizando o cálculo do upload ativo
+        # Isso garante que estamos usando o mesmo cálculo usado para criar as parcelas
+        if upload_ativo:
+            calculo = (
+                db.query(CalculosProfin)
+                .join(Escola, CalculosProfin.escola_id == Escola.id)
+                .filter(
+                    CalculosProfin.escola_id == escola_id,
+                    Escola.upload_id == upload_ativo.id
+                )
+                .first()
+            )
+        else:
+            calculo = db.query(CalculosProfin).filter(CalculosProfin.escola_id == escola_id).first()
+        if not calculo:
+            # Se a escola não tem cálculo, tentar buscar parcelas diretamente (pode ter parcelas de cálculos deletados)
+            if escola_pertence_upload_ativo or escola_tem_liberacoes:
+                # Buscar parcelas através de cálculos que podem ter sido deletados mas as parcelas ainda existem
+                # Ou buscar parcelas diretamente pela escola se houver alguma forma de vinculação
+                parcelas = (
+                    db.query(ParcelasProfin)
+                    .join(CalculosProfin, ParcelasProfin.calculo_id == CalculosProfin.id)
+                    .filter(
+                        CalculosProfin.escola_id == escola_id,
+                        ParcelasProfin.tipo_cota.in_(_COTAS_PROCESSAR_ENUM),
+                    )
+                    .order_by(ParcelasProfin.tipo_cota, ParcelasProfin.numero_parcela, ParcelasProfin.tipo_ensino)
+                    .all()
+                )
+                
+                if parcelas:
+                    # Se encontrou parcelas mesmo sem cálculo ativo, usar essas parcelas
+                    pct_fundamental, pct_medio = calcular_porcentagens_ensino(escola)
+                    
+                    def mapear_cota_exibicao(enum_value: str) -> str:
+                        info = _COTA_BY_ENUM.get(enum_value)
+                        return info[0] if info else enum_value
+                    
+                    parcelas_detalhes = [
+                        ParcelaDetalhe(
+                            id=p.id,
+                            tipo_cota=mapear_cota_exibicao(p.tipo_cota.value),
+                            numero_parcela=p.numero_parcela,
+                            tipo_ensino=p.tipo_ensino.value,
+                            valor_reais=p.valor_reais,
+                            valor_centavos=p.valor_centavos,
+                            porcentagem_alunos=p.porcentagem_alunos,
+                            created_at=p.created_at
+                        )
+                        for p in parcelas
+                    ]
+                    
+                    return ParcelasEscolaResponse(
+                        success=True,
+                        escola_id=escola.id,
+                        nome_uex=escola.nome_uex,
+                        dre=escola.dre,
+                        porcentagem_fundamental=pct_fundamental,
+                        porcentagem_medio=pct_medio,
+                        parcelas=parcelas_detalhes,
+                        estado_liberacao=escola_esta_liberada(escola),
+                        numeracao_folha=escola.numeracao_folha
+                    )
+                else:
+                    # Escola não tem cálculos nem parcelas
+                    # Retornar resposta com lista vazia em vez de erro 404
+                    # Isso permite que o frontend veja que a escola existe e tem liberações, mas não tem parcelas
+                    pct_fundamental, pct_medio = calcular_porcentagens_ensino(escola)
+                    
+                    return ParcelasEscolaResponse(
+                        success=True,
+                        escola_id=escola.id,
+                        nome_uex=escola.nome_uex,
+                        dre=escola.dre,
+                        porcentagem_fundamental=pct_fundamental,
+                        porcentagem_medio=pct_medio,
+                        parcelas=[],  # Lista vazia - escola tem liberações mas não tem parcelas ativas
+                        estado_liberacao=escola_esta_liberada(escola),
+                        numeracao_folha=escola.numeracao_folha
+                    )
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Nenhum cálculo encontrado para esta escola. Execute /calculos e /parcelas primeiro."
+                )
+        
+        parcelas = (
+            db.query(ParcelasProfin)
+            .filter(
+                ParcelasProfin.calculo_id == calculo.id,
+                ParcelasProfin.tipo_cota.in_(_COTAS_PROCESSAR_ENUM),
+            )
+            .order_by(ParcelasProfin.tipo_cota, ParcelasProfin.numero_parcela, ParcelasProfin.tipo_ensino)
+            .all()
         )
-        .order_by(ParcelasProfin.tipo_cota, ParcelasProfin.numero_parcela, ParcelasProfin.tipo_ensino)
-        .all()
-    )
 
-    if not parcelas:
-        raise HTTPException(status_code=404, detail="Nenhuma parcela encontrada para esta escola. Execute /parcelas primeiro.")
+        if not parcelas:
+            # Retornar resposta com lista vazia de parcelas em vez de erro 404
+            # Isso permite que o frontend veja que a escola existe e tem cálculo, mas ainda não tem parcelas
+            pct_fundamental, pct_medio = calcular_porcentagens_ensino(escola)
+            
+            return ParcelasEscolaResponse(
+                success=True,
+                escola_id=escola.id,
+                nome_uex=escola.nome_uex,
+                dre=escola.dre,
+                porcentagem_fundamental=pct_fundamental,
+                porcentagem_medio=pct_medio,
+                parcelas=[],  # Lista vazia - parcelas ainda não foram criadas
+                estado_liberacao=escola_esta_liberada(escola),
+                numeracao_folha=escola.numeracao_folha
+            )
 
-    pct_fundamental, pct_medio = calcular_porcentagens_ensino(escola)
+        pct_fundamental, pct_medio = calcular_porcentagens_ensino(escola)
 
-    def mapear_cota_exibicao(enum_value: str) -> str:
-        info = _COTA_BY_ENUM.get(enum_value)
-        return info[0] if info else enum_value
+        def mapear_cota_exibicao(enum_value: str) -> str:
+            info = _COTA_BY_ENUM.get(enum_value)
+            return info[0] if info else enum_value
 
-    parcelas_detalhes = [
-        ParcelaDetalhe(
-            id=p.id,
-            tipo_cota=mapear_cota_exibicao(p.tipo_cota.value),
-            numero_parcela=p.numero_parcela,
-            tipo_ensino=p.tipo_ensino.value,
-            valor_reais=p.valor_reais,
-            valor_centavos=p.valor_centavos,
-            porcentagem_alunos=p.porcentagem_alunos,
-            created_at=p.created_at
+        parcelas_detalhes = [
+            ParcelaDetalhe(
+                id=p.id,
+                tipo_cota=mapear_cota_exibicao(p.tipo_cota.value),
+                numero_parcela=p.numero_parcela,
+                tipo_ensino=p.tipo_ensino.value,
+                valor_reais=p.valor_reais,
+                valor_centavos=p.valor_centavos,
+                porcentagem_alunos=p.porcentagem_alunos,
+                created_at=p.created_at
+            )
+            for p in parcelas
+        ]
+        
+        return ParcelasEscolaResponse(
+            success=True,
+            escola_id=escola.id,
+            nome_uex=escola.nome_uex,
+            dre=escola.dre,
+            porcentagem_fundamental=pct_fundamental,
+            porcentagem_medio=pct_medio,
+            parcelas=parcelas_detalhes,
+            estado_liberacao=escola_esta_liberada(escola),
+            numeracao_folha=escola.numeracao_folha
         )
-        for p in parcelas
-    ]
     
-    return ParcelasEscolaResponse(
-        success=True,
-        escola_id=escola.id,
-        nome_uex=escola.nome_uex,
-        dre=escola.dre,
-        porcentagem_fundamental=pct_fundamental,
-        porcentagem_medio=pct_medio,
-        parcelas=parcelas_detalhes,
-        estado_liberacao=escola_esta_liberada(escola),
-        numeracao_folha=escola.numeracao_folha
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Erro ao obter parcelas da escola {escola_id}")
+        raise HTTPException(status_code=500, detail=f"Erro ao obter parcelas da escola: {str(e)}")
 
 @parcelas_router.post("", response_model=SepararParcelasResponse, tags=["Parcelas"])
 def separar_valores_em_parcelas(
@@ -390,12 +559,32 @@ def separar_valores_em_parcelas(
         logger.info(f"Versão do cálculo: {calculation_version}")
         logger.info("="*60)
 
+        # Buscar apenas cálculos do upload ativo (evitar parcelas de uploads antigos)
+        from src.modules.features.uploads.repository import ContextoAtivoRepository, UploadRepository
+        
+        contexto_repo = ContextoAtivoRepository(db)
+        upload_ativo = contexto_repo.find_upload_ativo(ano_letivo_id)
+        
+        if not upload_ativo:
+            # Fallback para o upload mais recente se não houver contexto ativo
+            upload_repo = UploadRepository(db)
+            upload_ativo = upload_repo.find_latest(ano_letivo_id)
+            if not upload_ativo:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Nenhum upload encontrado para o ano letivo {ano_letivo.ano}"
+                )
+        
+        logger.info(f"Usando upload ativo: ID {upload_ativo.id} - {upload_ativo.filename}")
+        
         calculos = (
             db.query(CalculosProfin)
             .join(Escola, CalculosProfin.escola_id == Escola.id)
             .join(Upload, Escola.upload_id == Upload.id)
             .options(joinedload(CalculosProfin.escola))
-            .filter(Upload.ano_letivo_id == ano_letivo_id)
+            .filter(
+                Escola.upload_id == upload_ativo.id
+            )
             .all()
         )
         
@@ -405,14 +594,17 @@ def separar_valores_em_parcelas(
                 detail=f"Nenhum cálculo encontrado para o ano letivo {ano_letivo.ano}. Execute /calculos primeiro."
             )
         
+        calculos_ids = [c.id for c in calculos]
+        deve_deletar_parcelas = False
+        
         if not request.recalcular:
+            # Verificar parcelas apenas do upload ativo
             calculos_com_parcelas = (
                 db.query(ParcelasProfin.calculo_id)
                 .join(CalculosProfin, ParcelasProfin.calculo_id == CalculosProfin.id)
                 .join(Escola, CalculosProfin.escola_id == Escola.id)
-                .join(Upload, Escola.upload_id == Upload.id)
                 .filter(
-                    Upload.ano_letivo_id == ano_letivo_id,
+                    Escola.upload_id == upload_ativo.id,
                     ParcelasProfin.tipo_cota.in_(_COTAS_PROCESSAR_ENUM),
                 )
                 .distinct()
@@ -425,13 +617,13 @@ def separar_valores_em_parcelas(
                 
                 if not calculos_sem_parcelas:
                     logger.info("Todas as escolas já têm parcelas criadas. Use recalcular=true para recalcular.")
+                    # Buscar parcelas apenas do upload ativo
                     parcelas_existentes = (
                         db.query(ParcelasProfin)
                         .join(CalculosProfin, ParcelasProfin.calculo_id == CalculosProfin.id)
                         .join(Escola, CalculosProfin.escola_id == Escola.id)
-                        .join(Upload, Escola.upload_id == Upload.id)
                         .filter(
-                            Upload.ano_letivo_id == ano_letivo_id,
+                            Escola.upload_id == upload_ativo.id,
                             ParcelasProfin.tipo_cota.in_(_COTAS_PROCESSAR_ENUM),
                         )
                         .all()
@@ -459,9 +651,20 @@ def separar_valores_em_parcelas(
                         
                         if nome_exibicao not in escolas_dict[escola_id]["parcelas_por_cota"]:
                             valor_cota = getattr(calculo, campo_cota, 0.0)
+                            
+                            # Calcular saldo reprogramado (mesma lógica usada ao criar novas parcelas)
+                            saldo_reprogramado = 0.0
+                            escola_temp = escolas_dict[escola_id]["escola"]
+                            # cota_enum_value é o valor do enum (ex: "merenda", "gestao", etc.)
+                            if cota_enum_value == "gestao" and escola_temp.saldo_reprogramado_gestao:
+                                saldo_reprogramado = escola_temp.saldo_reprogramado_gestao or 0.0
+                            elif cota_enum_value == "merenda" and escola_temp.saldo_reprogramado_merenda:
+                                saldo_reprogramado = escola_temp.saldo_reprogramado_merenda or 0.0
+                            
                             cota_data = {
                                 "tipo_cota": nome_exibicao,
                                 "valor_total_reais": valor_cota,
+                                "saldo_reprogramado": saldo_reprogramado,
                                 "parcela_1": {"fundamental": 0.0, "medio": 0.0},
                                 "porcentagens": {
                                     "fundamental": escolas_dict[escola_id]["pct_fundamental"],
@@ -506,17 +709,32 @@ def separar_valores_em_parcelas(
                         escolas=escolas_lista,
                         calculation_version=calculation_version
                     )
+                else:
+                    # Há alguns cálculos sem parcelas, vamos criar apenas para eles
+                    deve_deletar_parcelas = False  # Não deletar, apenas criar para os que faltam
+                    calculos = calculos_sem_parcelas
+            else:
+                # Não há parcelas existentes, então todos os cálculos precisam de parcelas
+                deve_deletar_parcelas = False  # Não deletar, apenas criar novas
+                # calculos já contém todos os cálculos que precisam de parcelas
         else:
-            calculos_ids = [c.id for c in calculos]
-            if calculos_ids:
-                db.query(ParcelasProfin)\
-                    .filter(
-                        ParcelasProfin.calculo_id.in_(calculos_ids),
-                        ParcelasProfin.tipo_cota.in_(_COTAS_PROCESSAR_ENUM)
-                    )\
-                    .delete(synchronize_session=False)
-                logger.info(f"Parcelas antigas deletadas para recalcular (apenas cotas especificadas)")
+            # recalcular=true: sempre deletar parcelas antigas antes de criar novas
+            deve_deletar_parcelas = True
         
+        # Deletar parcelas antigas se necessário (substituição completa)
+        if deve_deletar_parcelas and calculos_ids:
+            parcelas_deletadas = db.query(ParcelasProfin)\
+                .filter(
+                    ParcelasProfin.calculo_id.in_(calculos_ids),
+                    ParcelasProfin.tipo_cota.in_(_COTAS_PROCESSAR_ENUM)
+                )\
+                .delete(synchronize_session=False)
+            
+            if parcelas_deletadas > 0:
+                logger.info(f"Parcelas antigas deletadas: {parcelas_deletadas} parcela(s) para {len(calculos_ids)} cálculo(s)")
+            db.flush()  # Garantir que a deleção foi commitada antes de criar novas
+        
+        # Criar novas parcelas
         escolas_processadas = []
         total_parcelas_criadas = 0
         
@@ -621,7 +839,9 @@ def separar_valores_em_parcelas(
                     }
                 
                 parcelas_por_cota.append(ParcelaPorCota(**parcela_por_cota_data))
-                escolas_processadas.append(
+            
+            # Adicionar escola APENAS UMA VEZ após processar todas as cotas
+            escolas_processadas.append(
                 EscolaParcelas(
                     escola_id=escola.id,
                     nome_uex=escola.nome_uex,

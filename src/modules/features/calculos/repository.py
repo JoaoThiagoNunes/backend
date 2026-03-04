@@ -9,6 +9,11 @@ from src.modules.features.uploads import Upload
 class CalculoRepository(BaseRepository[CalculosProfin]):
     def __init__(self, db: Session):
         super().__init__(db, CalculosProfin)
+
+    def delete_all(self) -> int:
+        deleted = self.db.query(self.model).delete(synchronize_session=False)
+        self.db.flush()
+        return deleted
     
     def find_by_escola_id(self, escola_id: int) -> Optional[CalculosProfin]:
         return self.db.query(self.model).filter(

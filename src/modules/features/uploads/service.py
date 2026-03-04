@@ -6,6 +6,7 @@ from src.core.logging_config import logger
 from src.core.database import transaction
 from src.core.exceptions import UploadNaoEncontradoException, EscolaNaoEncontradaException
 from src.modules.features.uploads.repository import UploadRepository
+from src.modules.features.uploads import Upload
 from src.modules.features.escolas.repository import EscolaRepository
 from src.modules.features.escolas.utils import escola_esta_liberada
 from src.modules.schemas.upload import UploadListItem, UploadDetailInfo, EscolaPlanilhaInfo
@@ -157,7 +158,12 @@ class UploadService:
         logger.info(f"Total de linhas: {len(df)}")
         logger.debug(f"Colunas: {df.columns.tolist()}")
         
-        # Obter ou criar upload
+        # Identificar upload anterior ANTES de criar novo (para limpar dados relacionados)
+        from src.modules.features.uploads.repository import ContextoAtivoRepository
+        contexto_repo = ContextoAtivoRepository(db)
+        upload_anterior = contexto_repo.find_upload_ativo(ano_letivo_id)
+        
+        # Obter ou criar upload (cria novo e ativa)
         upload = obter_ou_criar_upload_ativo(db, ano_letivo_id, filename)
         db.flush()
         db.refresh(upload)
@@ -165,6 +171,69 @@ class UploadService:
         # Processar escolas
         upload_repo = UploadRepository(db)
         escola_repo = EscolaRepository(db)
+        
+        # Limpar dados relacionados do upload anterior (preservando liberações)
+        if upload_anterior and upload_anterior.id != upload.id:
+            logger.info(f"Limpando dados relacionados do upload anterior ID: {upload_anterior.id}")
+            escolas_anteriores = escola_repo.find_by_upload_id(upload_anterior.id)
+            
+            from src.modules.features.calculos.repository import CalculoRepository
+            from src.modules.features.complemento.repository import ComplementoEscolaRepository
+            
+            calculo_repo = CalculoRepository(db)
+            complemento_escola_repo = ComplementoEscolaRepository(db)
+            
+            calculos_deletados = 0
+            complementos_deletados = 0
+            
+            for escola_antiga in escolas_anteriores:
+                # Deletar cálculos (cascade deleta parcelas automaticamente)
+                calculo_existente = calculo_repo.find_by_escola_id(escola_antiga.id)
+                if calculo_existente:
+                    calculo_repo.delete(calculo_existente)
+                    calculos_deletados += 1
+                
+                # Deletar complementos
+                deleted = complemento_escola_repo.delete_by_escola_id(escola_antiga.id)
+                complementos_deletados += deleted
+            
+            logger.info(f"Dados limpos: {calculos_deletados} cálculos e {complementos_deletados} complementos deletados")
+            logger.info("Liberações de parcelas e projetos preservadas")
+        
+        # Limpar escolas de uploads não ativos (preservando apenas as que têm liberações)
+        logger.info("Iniciando limpeza de escolas de uploads não ativos...")
+        uploads_nao_ativos = upload_repo.find_all_by_ano_letivo(ano_letivo_id)
+        uploads_nao_ativos = [u for u in uploads_nao_ativos if u.id != upload.id]
+        
+        escolas_deletadas_nao_ativas = 0
+        escolas_preservadas_com_liberacoes = 0
+        
+        if uploads_nao_ativos:
+            logger.info(f"Encontrados {len(uploads_nao_ativos)} upload(s) não ativo(s) para limpeza")
+            
+            for upload_nao_ativo in uploads_nao_ativos:
+                escolas_upload_antigo = escola_repo.find_by_upload_id(upload_nao_ativo.id)
+                logger.debug(f"Processando upload não ativo ID {upload_nao_ativo.id}: {len(escolas_upload_antigo)} escola(s)")
+                
+                for escola_antiga in escolas_upload_antigo:
+                    # Verificar se tem liberações
+                    tem_liberacoes = (
+                        len(escola_antiga.liberacoes_parcelas) > 0 or
+                        escola_antiga.liberacoes_projetos is not None
+                    )
+                    
+                    if not tem_liberacoes:
+                        # Deletar escola (cascade deleta cálculos e complementos automaticamente)
+                        escola_repo.delete(escola_antiga)
+                        escolas_deletadas_nao_ativas += 1
+                    else:
+                        escolas_preservadas_com_liberacoes += 1
+                        logger.debug(f"Escola {escola_antiga.id} ({escola_antiga.nome_uex}) preservada - possui liberações")
+            
+            logger.info(f"Limpeza concluída: {escolas_deletadas_nao_ativas} escola(s) deletada(s), {escolas_preservadas_com_liberacoes} preservada(s) (com liberações)")
+        else:
+            logger.info("Nenhum upload não ativo encontrado para limpeza")
+        
         mapa_escolas_existentes = escola_repo.create_map_by_nome_dre(upload.id)
         escolas_existentes = list(mapa_escolas_existentes.values())
         
@@ -287,17 +356,49 @@ class UploadService:
                     continue
             
             # Remover escolas que não estão mais no arquivo
+            # IMPORTANTE: Deletar apenas se não houver liberações para preservar histórico
             escolas_para_deletar = [
                 e for e in escolas_existentes 
                 if e.id not in escolas_processadas
             ]
             
             escolas_removidas_count = 0
+            escolas_com_liberacao_nao_deletadas = 0
+            
             if escolas_para_deletar:
                 for escola_para_deletar in escolas_para_deletar:
-                    escola_repo.delete(escola_para_deletar)
-                    escolas_removidas_count += 1
-                logger.info(f"Removidas {escolas_removidas_count} escola(s) que não estão mais no arquivo")
+                    # Verificar se tem liberações antes de deletar
+                    tem_liberacoes = (
+                        len(escola_para_deletar.liberacoes_parcelas) > 0 or
+                        escola_para_deletar.liberacoes_projetos is not None
+                    )
+                    
+                    if tem_liberacoes:
+                        # Preservar escola se tiver liberações (apenas limpar dados relacionados)
+                        from src.modules.features.calculos.repository import CalculoRepository
+                        from src.modules.features.complemento.repository import ComplementoEscolaRepository
+                        
+                        calculo_repo_temp = CalculoRepository(db)
+                        complemento_escola_repo_temp = ComplementoEscolaRepository(db)
+                        
+                        # Limpar apenas cálculos e complementos, mantendo escola e liberações
+                        calculo_existente = calculo_repo_temp.find_by_escola_id(escola_para_deletar.id)
+                        if calculo_existente:
+                            calculo_repo_temp.delete(calculo_existente)
+                        
+                        complemento_escola_repo_temp.delete_by_escola_id(escola_para_deletar.id)
+                        
+                        escolas_com_liberacao_nao_deletadas += 1
+                        logger.debug(f"Escola {escola_para_deletar.id} ({escola_para_deletar.nome_uex}) preservada devido a liberações")
+                    else:
+                        # Deletar escola se não tiver liberações
+                        escola_repo.delete(escola_para_deletar)
+                        escolas_removidas_count += 1
+                
+                if escolas_removidas_count > 0:
+                    logger.info(f"Removidas {escolas_removidas_count} escola(s) que não estão mais no arquivo")
+                if escolas_com_liberacao_nao_deletadas > 0:
+                    logger.info(f"Preservadas {escolas_com_liberacao_nao_deletadas} escola(s) com liberações (dados relacionados limpos)")
             
             upload_repo.update(upload, total_escolas=escolas_salvas)
         
