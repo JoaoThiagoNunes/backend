@@ -22,6 +22,15 @@ class ComplementoEscolaInfo(BaseModel):
     # Valores calculados (se houver aumento)
     valor_complemento_total: Optional[float] = None
     
+    # Valores individuais das cotas
+    valor_complemento_gestao: Optional[float] = None
+    valor_complemento_projeto: Optional[float] = None
+    valor_complemento_kit_escolar: Optional[float] = None
+    valor_complemento_uniforme: Optional[float] = None
+    valor_complemento_merenda: Optional[float] = None
+    valor_complemento_sala_recurso: Optional[float] = None
+    valor_complemento_preuni: Optional[float] = None
+    
     # Detalhes por modalidade (opcional)
     detalhes_modalidades: Optional[Dict[str, Any]] = None
     

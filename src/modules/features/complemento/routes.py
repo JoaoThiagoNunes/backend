@@ -91,7 +91,14 @@ def obter_complemento_detalhado(
             total_alunos_antes=ce.total_alunos_antes,
             total_alunos_depois=ce.total_alunos_depois,
             total_alunos_diferenca=ce.total_alunos_diferenca,
-            valor_complemento_total=ce.valor_complemento_total
+            valor_complemento_total=ce.valor_complemento_total,
+            valor_complemento_gestao=ce.valor_complemento_gestao,
+            valor_complemento_projeto=ce.valor_complemento_projeto,
+            valor_complemento_kit_escolar=ce.valor_complemento_kit_escolar,
+            valor_complemento_uniforme=ce.valor_complemento_uniforme,
+            valor_complemento_merenda=ce.valor_complemento_merenda,
+            valor_complemento_sala_recurso=ce.valor_complemento_sala_recurso,
+            valor_complemento_preuni=ce.valor_complemento_preuni
         ))
     
     return ComplementoUploadDetailResponse(
@@ -135,7 +142,14 @@ def obter_complementos_escola(
             'data': c.processed_at,
             'status': c.status.value,
             'total_alunos_diferenca': c.total_alunos_diferenca,
-            'valor_complemento_total': c.valor_complemento_total
+            'valor_complemento_total': c.valor_complemento_total,
+            'valor_complemento_gestao': c.valor_complemento_gestao,
+            'valor_complemento_projeto': c.valor_complemento_projeto,
+            'valor_complemento_kit_escolar': c.valor_complemento_kit_escolar,
+            'valor_complemento_uniforme': c.valor_complemento_uniforme,
+            'valor_complemento_merenda': c.valor_complemento_merenda,
+            'valor_complemento_sala_recurso': c.valor_complemento_sala_recurso,
+            'valor_complemento_preuni': c.valor_complemento_preuni
         })
     
     return ComplementoEscolaHistoricoResponse(

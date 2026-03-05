@@ -104,7 +104,8 @@ def calcular_complemento_valores(diferencas: Dict[str, int]) -> Dict[str, float]
     })
     
     # Usar função existente de cálculo
-    cotas = calcular_todas_cotas(row_diferenca)
+    # Para complemento, não incluímos o valor fixo de gestão (R$ 2000,00)
+    cotas = calcular_todas_cotas(row_diferenca, incluir_valor_fixo_gestao=False)
     
     return cotas
 

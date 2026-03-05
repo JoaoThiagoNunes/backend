@@ -26,6 +26,40 @@ class ComplementoUploadRepository(BaseRepository[ComplementoUpload]):
         return self.db.query(ComplementoUpload).filter(
             ComplementoUpload.upload_base_id == upload_base_id
         ).all()
+    
+    def find_by_upload_base_and_ano(self, upload_base_id: int, ano_letivo_id: int) -> Optional[ComplementoUpload]:
+        """Busca complemento existente para um upload base e ano letivo específicos."""
+        return self.db.query(ComplementoUpload).filter(
+            ComplementoUpload.upload_base_id == upload_base_id,
+            ComplementoUpload.ano_letivo_id == ano_letivo_id
+        ).first()
+    
+    def delete_all_by_upload_base_and_ano(self, upload_base_id: int, ano_letivo_id: int) -> int:
+        """Deleta todos os complementos para um upload base e ano letivo específicos."""
+        complementos = self.db.query(ComplementoUpload).filter(
+            ComplementoUpload.upload_base_id == upload_base_id,
+            ComplementoUpload.ano_letivo_id == ano_letivo_id
+        ).all()
+        
+        count = len(complementos)
+        for complemento in complementos:
+            self.db.delete(complemento)
+        
+        self.db.flush()
+        return count
+    
+    def delete_all_by_ano_letivo(self, ano_letivo_id: int) -> int:
+        """Deleta todos os complementos de um ano letivo específico."""
+        complementos = self.db.query(ComplementoUpload).filter(
+            ComplementoUpload.ano_letivo_id == ano_letivo_id
+        ).all()
+        
+        count = len(complementos)
+        for complemento in complementos:
+            self.db.delete(complemento)
+        
+        self.db.flush()
+        return count
 
 
 class ComplementoEscolaRepository(BaseRepository[ComplementoEscola]):

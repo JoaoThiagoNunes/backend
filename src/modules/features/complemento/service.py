@@ -94,6 +94,19 @@ class ComplementoService:
         valor_total_complemento = 0.0
         
         with transaction(db):
+            # Deletar TODOS os ComplementoUpload existentes para este ano_letivo
+            # Isso garante substituição completa - a cada nova inserção, remove todos os anteriores do ano
+            deleted_count = complemento_repo.delete_all_by_ano_letivo(ano_id)
+            
+            if deleted_count > 0:
+                logger.info(
+                    f"{deleted_count} ComplementoUpload(s) existente(s) deletado(s) "
+                    f"para ano_letivo_id={ano_id}. "
+                    f"Substituindo por novo processamento."
+                )
+                # O cascade definido no modelo já deleta automaticamente os ComplementoEscola relacionados
+                db.flush()  # Garantir que a deleção foi commitada antes de criar novo
+            
             # Criar registro de ComplementoUpload
             complemento_upload = complemento_repo.create(
                 ano_letivo_id=ano_id,
@@ -107,6 +120,9 @@ class ComplementoService:
                 escolas_com_erro=0
             )
             db.flush()
+            
+            # Set para rastrear escolas já processadas neste complemento (evitar duplicatas)
+            escolas_processadas = set()
             
             # Processar cada linha da planilha complementar
             for idx, row in df.iterrows():
@@ -128,6 +144,17 @@ class ComplementoService:
                         logger.warning(f"Escola não encontrada: {nome_escola} (DRE: {dre_val})")
                         escolas_com_erro += 1
                         continue
+                    
+                    # Verificar se esta escola já foi processada neste complemento
+                    if escola_base.id in escolas_processadas:
+                        logger.warning(
+                            f"Escola duplicada na planilha ignorada: {nome_escola} (ID: {escola_base.id}, DRE: {dre_val}). "
+                            f"Usando apenas o primeiro registro."
+                        )
+                        continue
+                    
+                    # Marcar escola como processada
+                    escolas_processadas.add(escola_base.id)
                     
                     # Extrair dados do complemento
                     dados_complemento = {
