@@ -92,6 +92,28 @@ Rotas para:
 
 ---
 
+### 6. [Rotas de Complemento](DOC_ROTAS_COMPLEMENTO.md)
+**Arquivo:** `src/modules/features/complemento/routes.py`  
+**Prefixo:** `/complemento`
+
+Rotas para:
+- Upload e processamento de planilhas de complemento de alunos
+- Cálculo de valores de complemento baseado em diferenças de alunos
+- Gerenciamento de folhas (sheets) para liberação
+- Consulta de histórico de complementos por escola
+- Resumo agrupado por folhas para repasse financeiro
+
+**Principais rotas:**
+- `POST /complemento/upload` - Upload de planilha de complemento
+- `GET /complemento/repasse` - Resumo agrupado por folhas
+- `GET /complemento/{complemento_upload_id}` - Detalhes de um upload
+- `GET /complemento/escola/{escola_id}` - Histórico de uma escola
+- `POST /complemento/liberar` - Liberar escolas para folha
+- `GET /complemento/liberacoes` - Listar liberações
+- `PUT /complemento/liberacoes/{liberacao_id}` - Atualizar liberação
+
+---
+
 ## 🔄 Fluxo de Trabalho Completo
 
 ### 1. Configuração Inicial
@@ -182,6 +204,16 @@ GET /admin/status-dados
 ├── GET  /folha/{parcela}/{folha} # Liberações por folha
 ├── GET  /previsao              # Previsão de liberação
 └── GET  /repasse               # Consolidação para repasse
+
+/complemento
+├── POST   /upload                    # Upload de planilha
+├── GET    /repasse                   # Resumo agrupado por folhas
+├── GET    /                          # Listar uploads (paginado)
+├── GET    /{complemento_upload_id}   # Detalhes de um upload
+├── GET    /escola/{escola_id}        # Histórico de uma escola
+├── POST   /liberar                   # Liberar escolas para folha
+├── GET    /liberacoes                # Listar liberações
+└── PUT    /liberacoes/{liberacao_id} # Atualizar liberação
 ```
 
 ---
@@ -193,6 +225,7 @@ GET /admin/status-dados
 - [Documentação Completa - Uploads](DOC_ROTAS_UPLOADS.md)
 - [Documentação Completa - Cálculos](DOC_ROTAS_CALCULOS.md)
 - [Documentação Completa - Parcelas](DOC_ROTAS_PARCELAS.md)
+- [Documentação Completa - Complemento](DOC_ROTAS_COMPLEMENTO.md)
 
 ---
 

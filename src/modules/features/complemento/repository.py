@@ -1,7 +1,7 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Optional, List
 from src.modules.shared.repositories import BaseRepository
-from .models import ComplementoUpload, ComplementoEscola, StatusComplemento
+from .models import ComplementoUpload, ComplementoEscola, StatusComplemento, LiberacoesComplemento
 
 
 class ComplementoUploadRepository(BaseRepository[ComplementoUpload]):
@@ -60,6 +60,12 @@ class ComplementoUploadRepository(BaseRepository[ComplementoUpload]):
         
         self.db.flush()
         return count
+    
+    def find_mais_recente_by_ano_letivo(self, ano_letivo_id: int) -> Optional[ComplementoUpload]:
+        """Busca o complemento upload mais recente de um ano letivo."""
+        return self.db.query(ComplementoUpload).filter(
+            ComplementoUpload.ano_letivo_id == ano_letivo_id
+        ).order_by(ComplementoUpload.upload_date.desc()).first()
 
 
 class ComplementoEscolaRepository(BaseRepository[ComplementoEscola]):
@@ -96,3 +102,71 @@ class ComplementoEscolaRepository(BaseRepository[ComplementoEscola]):
         ).delete(synchronize_session=False)
         self.db.flush()
         return deleted
+
+
+class LiberacaoComplementoRepository(BaseRepository[LiberacoesComplemento]):
+    """
+    Repositório para operações CRUD com LiberacoesComplemento.
+    """
+    
+    def __init__(self, db: Session):
+        super().__init__(db, LiberacoesComplemento)
+    
+    def find_by_escola(self, escola_id: int, complemento_upload_id: Optional[int] = None) -> Optional[LiberacoesComplemento]:
+        """Busca liberação de complemento de uma escola específica."""
+        query = self.db.query(self.model).filter(
+            LiberacoesComplemento.escola_id == escola_id
+        )
+        if complemento_upload_id:
+            query = query.filter(LiberacoesComplemento.complemento_upload_id == complemento_upload_id)
+        return query.first()
+    
+    def find_by_folha(
+        self,
+        numero_folha: int,
+        complemento_upload_id: Optional[int] = None
+    ) -> List[LiberacoesComplemento]:
+        """Busca todas as liberações de uma folha específica."""
+        query = self.db.query(self.model).filter(
+            LiberacoesComplemento.numero_folha == numero_folha
+        )
+        if complemento_upload_id:
+            query = query.filter(LiberacoesComplemento.complemento_upload_id == complemento_upload_id)
+        return query.options(joinedload(LiberacoesComplemento.escola)).all()
+    
+    def find_liberadas(
+        self,
+        numero_folha: Optional[int] = None,
+        complemento_upload_id: Optional[int] = None
+    ) -> List[LiberacoesComplemento]:
+        """Busca todas as liberações liberadas, opcionalmente filtradas por folha e upload."""
+        query = self.db.query(self.model).filter(
+            LiberacoesComplemento.liberada == True
+        )
+        if numero_folha:
+            query = query.filter(LiberacoesComplemento.numero_folha == numero_folha)
+        if complemento_upload_id:
+            query = query.filter(LiberacoesComplemento.complemento_upload_id == complemento_upload_id)
+        return query.options(joinedload(LiberacoesComplemento.escola)).all()
+    
+    def find_by_escolas_ids(
+        self,
+        escola_ids: List[int],
+        complemento_upload_id: Optional[int] = None
+    ) -> List[LiberacoesComplemento]:
+        """Busca liberações de múltiplas escolas."""
+        query = self.db.query(self.model).filter(
+            LiberacoesComplemento.escola_id.in_(escola_ids)
+        )
+        if complemento_upload_id:
+            query = query.filter(LiberacoesComplemento.complemento_upload_id == complemento_upload_id)
+        return query.options(joinedload(LiberacoesComplemento.escola)).all()
+    
+    def create_map_by_escola_id(
+        self,
+        escola_ids: List[int],
+        complemento_upload_id: Optional[int] = None
+    ) -> dict:
+        """Cria um mapa de liberações por escola_id."""
+        liberacoes = self.find_by_escolas_ids(escola_ids, complemento_upload_id)
+        return {liberacao.escola_id: liberacao for liberacao in liberacoes}

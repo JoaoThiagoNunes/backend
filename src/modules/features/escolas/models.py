@@ -80,6 +80,11 @@ class Escola(Base):
         cascade="all, delete-orphan"
         
     )
+    liberacoes_complementos = relationship(
+        "LiberacoesComplemento",
+        back_populates="escola"
+        # Removido cascade para preservar liberações ao deletar/atualizar escolas
+    )
     
     def __repr__(self):
         return f"<Escola(id={self.id}, nome='{self.nome_uex}', alunos={self.total_alunos})>"

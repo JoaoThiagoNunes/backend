@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, Enum as SQLEnum, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from src.modules.shared.base import Base
@@ -35,6 +35,8 @@ class ComplementoUpload(Base):
     upload_complemento = relationship("Upload", foreign_keys=[upload_complemento_id])
     complementos_escola = relationship("ComplementoEscola", back_populates="complemento_upload", 
                                        cascade="all, delete-orphan")
+    liberacoes_complemento = relationship("LiberacoesComplemento", back_populates="complemento_upload",
+                                         cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<ComplementoUpload(id={self.id}, ano={self.ano_letivo_id}, filename='{self.filename}')>"
@@ -121,3 +123,31 @@ class ComplementoEscola(Base):
     
     def __repr__(self):
         return f"<ComplementoEscola(escola_id={self.escola_id}, status={self.status.value}, valor={self.valor_complemento_total})>"
+
+
+class LiberacoesComplemento(Base):
+    __tablename__ = "liberacoes_complemento"
+    __table_args__ = (
+        UniqueConstraint(
+            'escola_id',
+            'complemento_upload_id',
+            name='uq_liberacao_complemento_escola_upload'
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    escola_id = Column(Integer, ForeignKey("escolas.id", ondelete="RESTRICT"), nullable=False, index=True)
+    complemento_upload_id = Column(Integer, ForeignKey("complemento_uploads.id", ondelete="CASCADE"), nullable=True, index=True)
+    liberada = Column(Boolean, default=False, nullable=False, index=True)
+    numero_folha = Column(Integer, nullable=True, index=True)
+    data_liberacao = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+    escola = relationship("Escola", back_populates="liberacoes_complementos")
+    complemento_upload = relationship("ComplementoUpload", back_populates="liberacoes_complemento")
+
+    def __repr__(self):
+        return f"<LiberacoesComplemento(escola_id={self.escola_id}, folha={self.numero_folha}, liberada={self.liberada})>"

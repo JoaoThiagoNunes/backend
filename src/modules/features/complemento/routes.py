@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Optional, List
 from src.core.database import get_db
 from src.core.logging_config import logger
@@ -10,8 +10,16 @@ from src.modules.schemas.complemento import (
     UploadComplementoResponse,
     ComplementoUploadDetailResponse,
     ComplementoEscolaHistoricoResponse,
-    ComplementoEscolaInfo
+    ComplementoEscolaInfo,
+    LiberarComplementoRequest,
+    LiberarComplementoResponse,
+    ListarLiberacoesComplementoRequest,
+    ListarLiberacoesComplementoResponse,
+    AtualizarLiberacaoComplementoRequest,
+    LiberacaoComplementoResponse,
+    ComplementoResumoResponse
 )
+from .repository import LiberacaoComplementoRepository
 
 
 complemento_router = APIRouter()
@@ -63,6 +71,73 @@ async def upload_complemento(
         raise HTTPException(status_code=500, detail=f"Erro ao processar complemento: {str(e)}")
 
 
+
+
+@complemento_router.get("/repasse", response_model=ComplementoResumoResponse, tags=["Complemento"])
+def obter_complementos_agrupados(
+    ano_letivo_id: Optional[int] = Query(None, description="ID do ano letivo (padrão: ano ativo)"),
+    complemento_upload_id: Optional[int] = Query(None, description="Filtrar por complemento_upload_id"),
+    db: Session = Depends(get_db)
+) -> ComplementoResumoResponse:
+    """Obtém resumo de complementos agrupados por folhas."""
+    try:
+        resultado = ComplementoService.obter_complementos_agrupados(
+            db,
+            ano_letivo_id,
+            complemento_upload_id
+        )
+        
+        return ComplementoResumoResponse(**resultado)
+    except Exception as e:
+        logger.exception("ERRO AO OBTER COMPLEMENTOS AGRUPADOS")
+        raise HTTPException(status_code=500, detail=f"Erro ao obter complementos agrupados: {str(e)}")
+
+
+@complemento_router.get("/liberacoes", response_model=ListarLiberacoesComplementoResponse, tags=["Complemento"])
+def listar_liberacoes_complemento(
+    complemento_upload_id: Optional[int] = Query(None, description="Filtrar por complemento_upload_id (padrão: mais recente)"),
+    numero_folha: Optional[int] = Query(None, description="Filtrar por número da folha"),
+    liberada: Optional[bool] = Query(None, description="Filtrar por status de liberação"),
+    escola_id: Optional[int] = Query(None, description="Filtrar por escola_id"),
+    ano_letivo_id: Optional[int] = Query(None, description="ID do ano letivo (usado para buscar complemento_upload mais recente)"),
+    db: Session = Depends(get_db)
+) -> ListarLiberacoesComplementoResponse:
+    """Lista liberações de complemento com filtros opcionais."""
+    # Se não informado complemento_upload_id, buscar o mais recente
+    if complemento_upload_id is None:
+        from src.modules.features.anos import obter_ano_letivo
+        _, ano_id = obter_ano_letivo(db, ano_letivo_id)
+        complemento_repo = ComplementoUploadRepository(db)
+        complemento_upload_recente = complemento_repo.find_mais_recente_by_ano_letivo(ano_id)
+        if complemento_upload_recente:
+            complemento_upload_id = complemento_upload_recente.id
+    
+    liberacao_repo = LiberacaoComplementoRepository(db)
+    
+    query = liberacao_repo.db.query(liberacao_repo.model)
+    
+    if complemento_upload_id:
+        query = query.filter(liberacao_repo.model.complemento_upload_id == complemento_upload_id)
+    if numero_folha:
+        query = query.filter(liberacao_repo.model.numero_folha == numero_folha)
+    if liberada is not None:
+        query = query.filter(liberacao_repo.model.liberada == liberada)
+    if escola_id:
+        query = query.filter(liberacao_repo.model.escola_id == escola_id)
+    
+    liberacoes = query.options(joinedload(liberacao_repo.model.escola)).all()
+    
+    liberacoes_info = [
+        ComplementoService.mapear_liberacao_complemento(lib) for lib in liberacoes
+    ]
+    
+    return ListarLiberacoesComplementoResponse(
+        success=True,
+        total=len(liberacoes_info),
+        liberacoes=liberacoes_info
+    )
+
+
 @complemento_router.get("/{complemento_upload_id}", response_model=ComplementoUploadDetailResponse, tags=["Complemento"])
 def obter_complemento_detalhado(
     complemento_upload_id: int,
@@ -93,12 +168,10 @@ def obter_complemento_detalhado(
             total_alunos_diferenca=ce.total_alunos_diferenca,
             valor_complemento_total=ce.valor_complemento_total,
             valor_complemento_gestao=ce.valor_complemento_gestao,
-            valor_complemento_projeto=ce.valor_complemento_projeto,
             valor_complemento_kit_escolar=ce.valor_complemento_kit_escolar,
             valor_complemento_uniforme=ce.valor_complemento_uniforme,
             valor_complemento_merenda=ce.valor_complemento_merenda,
-            valor_complemento_sala_recurso=ce.valor_complemento_sala_recurso,
-            valor_complemento_preuni=ce.valor_complemento_preuni
+            valor_complemento_sala_recurso=ce.valor_complemento_sala_recurso
         ))
     
     return ComplementoUploadDetailResponse(
@@ -144,12 +217,10 @@ def obter_complementos_escola(
             'total_alunos_diferenca': c.total_alunos_diferenca,
             'valor_complemento_total': c.valor_complemento_total,
             'valor_complemento_gestao': c.valor_complemento_gestao,
-            'valor_complemento_projeto': c.valor_complemento_projeto,
             'valor_complemento_kit_escolar': c.valor_complemento_kit_escolar,
             'valor_complemento_uniforme': c.valor_complemento_uniforme,
             'valor_complemento_merenda': c.valor_complemento_merenda,
-            'valor_complemento_sala_recurso': c.valor_complemento_sala_recurso,
-            'valor_complemento_preuni': c.valor_complemento_preuni
+            'valor_complemento_sala_recurso': c.valor_complemento_sala_recurso
         })
     
     return ComplementoEscolaHistoricoResponse(
@@ -199,3 +270,75 @@ def listar_complementos(
             for c in complementos_paginados
         ]
     }
+
+
+@complemento_router.post("/liberar", response_model=LiberarComplementoResponse, tags=["Complemento"])
+def liberar_escolas_complemento(
+    request: LiberarComplementoRequest,
+    db: Session = Depends(get_db)
+) -> LiberarComplementoResponse:
+    """Libera escolas para uma folha de complemento."""
+    try:
+        liberacoes = ComplementoService.liberar_escolas_complemento(
+            db,
+            request.escola_ids,
+            request.numero_folha,
+            request.complemento_upload_id,
+            request.ano_letivo_id
+        )
+        
+        liberacoes_info = [
+            ComplementoService.mapear_liberacao_complemento(lib) for lib in liberacoes
+        ]
+        
+        return LiberarComplementoResponse(
+            success=True,
+            message=f"{len(liberacoes)} escola(s) liberada(s) para folha {request.numero_folha}",
+            total_escolas_atualizadas=len(liberacoes),
+            numero_folha=request.numero_folha,
+            liberacoes=liberacoes_info
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("ERRO AO LIBERAR ESCOLAS PARA COMPLEMENTO")
+        raise HTTPException(status_code=500, detail=f"Erro ao liberar escolas: {str(e)}")
+
+
+@complemento_router.put("/liberacoes/{liberacao_id}", response_model=LiberacaoComplementoResponse, tags=["Complemento"])
+def atualizar_liberacao_complemento(
+    liberacao_id: int,
+    request: AtualizarLiberacaoComplementoRequest,
+    db: Session = Depends(get_db)
+) -> LiberacaoComplementoResponse:
+    """Atualiza uma liberação de complemento."""
+    liberacao_repo = LiberacaoComplementoRepository(db)
+    liberacao = liberacao_repo.find_by_id(liberacao_id)
+    
+    if not liberacao:
+        raise HTTPException(status_code=404, detail="Liberação não encontrada")
+    
+    try:
+        update_data = {}
+        if request.liberada is not None:
+            update_data['liberada'] = request.liberada
+        if request.numero_folha is not None:
+            update_data['numero_folha'] = request.numero_folha
+        if request.data_liberacao is not None:
+            update_data['data_liberacao'] = request.data_liberacao
+        
+        if update_data:
+            liberacao_repo.update(liberacao, **update_data)
+        
+        liberacao_info = ComplementoService.mapear_liberacao_complemento(liberacao)
+        
+        return LiberacaoComplementoResponse(
+            success=True,
+            message="Liberação atualizada com sucesso",
+            liberacao=liberacao_info
+        )
+    except Exception as e:
+        logger.exception("ERRO AO ATUALIZAR LIBERAÇÃO DE COMPLEMENTO")
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar liberação: {str(e)}")
+
+

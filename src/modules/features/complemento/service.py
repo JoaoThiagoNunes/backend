@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
-from typing import Optional, Dict, Any
+from sqlalchemy.orm import Session, joinedload
+from typing import Optional, Dict, Any, List
 from io import BytesIO
 from datetime import datetime
 import pandas as pd
@@ -10,10 +10,15 @@ from src.modules.features.anos import obter_ano_letivo
 from src.modules.features.uploads import UploadService
 from src.modules.features.uploads.repository import UploadRepository
 from src.modules.features.escolas.repository import EscolaRepository
-from .repository import ComplementoUploadRepository, ComplementoEscolaRepository
-from .models import ComplementoUpload, ComplementoEscola, StatusComplemento
+from .repository import ComplementoUploadRepository, ComplementoEscolaRepository, LiberacaoComplementoRepository
+from .models import ComplementoUpload, ComplementoEscola, StatusComplemento, LiberacoesComplemento
 from .utils import comparar_quantidades, calcular_complemento_valores
 from src.modules.shared.utils import obter_texto, obter_quantidade
+from src.modules.schemas.complemento import (
+    LiberacaoComplementoInfo,
+    ComplementoEscolaPrevisaoInfo,
+    ComplementoFolhaInfo
+)
 
 
 class ComplementoService:
@@ -304,3 +309,211 @@ class ComplementoService:
             "valor_complemento_total": valor_total_complemento,
             "resultados": resultados
         }
+    @staticmethod
+    def mapear_liberacao_complemento(liberacao: LiberacoesComplemento) -> LiberacaoComplementoInfo:
+        """Mapeia uma liberação de complemento para o schema de resposta."""
+        escola = liberacao.escola
+        
+        return LiberacaoComplementoInfo(
+            id=liberacao.id,
+            escola_id=escola.id if escola else liberacao.escola_id,
+            nome_uex=escola.nome_uex if escola else "",
+            dre=escola.dre if escola else None,
+            complemento_upload_id=liberacao.complemento_upload_id,
+            liberada=liberacao.liberada,
+            numero_folha=liberacao.numero_folha,
+            data_liberacao=liberacao.data_liberacao,
+            created_at=liberacao.created_at,
+            updated_at=liberacao.updated_at
+        )
+    
+    @staticmethod
+    def liberar_escolas_complemento(
+        db: Session,
+        escola_ids: List[int],
+        numero_folha: int,
+        complemento_upload_id: Optional[int] = None,
+        ano_letivo_id: Optional[int] = None
+    ) -> List[LiberacoesComplemento]:
+        """Libera escolas para uma folha de complemento."""
+        if not escola_ids:
+            raise ValueError("Informe ao menos uma escola para liberar")
+        
+        if numero_folha <= 0:
+            raise ValueError("numero_folha deve ser um inteiro maior ou igual a 1")
+        
+        # Se não informado complemento_upload_id, buscar o mais recente
+        if complemento_upload_id is None:
+            _, ano_id = obter_ano_letivo(db, ano_letivo_id)
+            complemento_repo = ComplementoUploadRepository(db)
+            complemento_upload_recente = complemento_repo.find_mais_recente_by_ano_letivo(ano_id)
+            if complemento_upload_recente:
+                complemento_upload_id = complemento_upload_recente.id
+        
+        escola_ids_unicos = list(dict.fromkeys(escola_ids))
+        
+        escola_repo = EscolaRepository(db)
+        escolas = escola_repo.find_by_ids(escola_ids_unicos)
+        
+        if len(escolas) != len(escola_ids_unicos):
+            ids_encontrados = {escola.id for escola in escolas}
+            ids_invalidos = [eid for eid in escola_ids_unicos if eid not in ids_encontrados]
+            raise ValueError(f"Escolas não encontradas: {ids_invalidos}")
+        
+        liberacao_repo = LiberacaoComplementoRepository(db)
+        liberacoes_existentes = liberacao_repo.find_by_escolas_ids(escola_ids_unicos, complemento_upload_id)
+        
+        mapa_liberacoes: Dict[int, LiberacoesComplemento] = {
+            liberacao.escola_id: liberacao for liberacao in liberacoes_existentes
+        }
+        
+        agora = datetime.now()
+        liberacoes_resultado: List[LiberacoesComplemento] = []
+        
+        with transaction(db):
+            for escola in escolas:
+                liberacao = mapa_liberacoes.get(escola.id)
+                
+                if liberacao:
+                    liberacao.liberada = True
+                    liberacao.numero_folha = numero_folha
+                    liberacao.data_liberacao = agora
+                else:
+                    liberacao = LiberacoesComplemento(
+                        escola_id=escola.id,
+                        complemento_upload_id=complemento_upload_id,
+                        liberada=True,
+                        numero_folha=numero_folha,
+                        data_liberacao=agora
+                    )
+                    db.add(liberacao)
+                    mapa_liberacoes[escola.id] = liberacao
+                
+                liberacao.escola = escola
+                liberacoes_resultado.append(liberacao)
+        
+        return liberacoes_resultado
+    
+    @staticmethod
+    def obter_complementos_agrupados(
+        db: Session,
+        ano_letivo_id: Optional[int] = None,
+        complemento_upload_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Obtém resumo de complementos agrupados por folhas."""
+        from src.modules.features.uploads.repository import ContextoAtivoRepository
+        
+        _, ano_id = obter_ano_letivo(db, ano_letivo_id)
+        
+        # Se não informado complemento_upload_id, buscar o mais recente
+        if complemento_upload_id is None:
+            complemento_repo = ComplementoUploadRepository(db)
+            complemento_upload_recente = complemento_repo.find_mais_recente_by_ano_letivo(ano_id)
+            if complemento_upload_recente:
+                complemento_upload_id = complemento_upload_recente.id
+        
+        # Buscar upload ativo para filtrar escolas
+        contexto_repo = ContextoAtivoRepository(db)
+        upload_ativo = contexto_repo.find_upload_ativo(ano_id)
+        
+        if not upload_ativo:
+            return {
+                "success": True,
+                "total_folhas": 0,
+                "total_escolas": 0,
+                "valor_total_reais": 0.0,
+                "folhas": []
+            }
+        
+        # Buscar escolas do upload ativo que têm complemento
+        escola_repo = EscolaRepository(db)
+        escolas = escola_repo.find_by_upload_id(upload_ativo.id)
+        
+        # Buscar complementos das escolas
+        complemento_escola_repo = ComplementoEscolaRepository(db)
+        liberacao_repo = LiberacaoComplementoRepository(db)
+        
+        # Filtrar por complemento_upload_id se fornecido
+        if complemento_upload_id:
+            complementos_escola = complemento_escola_repo.find_by_complemento_upload(complemento_upload_id)
+            escola_ids_com_complemento = {ce.escola_id for ce in complementos_escola}
+            escolas = [e for e in escolas if e.id in escola_ids_com_complemento]
+        
+        # Buscar liberações
+        liberacoes = liberacao_repo.find_liberadas(complemento_upload_id=complemento_upload_id)
+        mapa_liberacoes: Dict[int, LiberacoesComplemento] = {
+            lib.escola_id: lib for lib in liberacoes
+        }
+        
+        # Agrupar por folha
+        agrupado: Dict[Optional[int], List[Dict[str, Any]]] = {}
+        escolas_por_folha: Dict[Optional[int], set] = {}
+        
+        for escola in escolas:
+            # Buscar complemento da escola
+            complementos = complemento_escola_repo.find_by_escola(escola.id)
+            if complemento_upload_id:
+                complementos = [c for c in complementos if c.complemento_upload_id == complemento_upload_id]
+            
+            if not complementos:
+                continue
+            
+            # Usar o complemento mais recente
+            complemento = complementos[0]
+            
+            # Verificar se escola tem liberação
+            liberacao = mapa_liberacoes.get(escola.id)
+            
+            if liberacao:
+                folha = liberacao.numero_folha
+                liberada = liberacao.liberada
+            else:
+                folha = None
+                liberada = False
+            
+            if folha not in agrupado:
+                agrupado[folha] = []
+                escolas_por_folha[folha] = set()
+            
+            if escola.id in escolas_por_folha[folha]:
+                continue
+            
+            escolas_por_folha[folha].add(escola.id)
+            
+            info = ComplementoEscolaPrevisaoInfo(
+                escola_id=escola.id,
+                nome_uex=escola.nome_uex,
+                dre=escola.dre,
+                liberada=liberada,
+                numero_folha=folha,
+                valor_complemento_total=complemento.valor_complemento_total or 0.0,
+                status=complemento.status.value
+            )
+            
+            agrupado[folha].append(info.dict())
+        
+        # Criar lista de folhas
+        folhas_info: List[ComplementoFolhaInfo] = []
+        total_valor = 0.0
+        total_escolas = 0
+        
+        for folha, escolas_lista in sorted(agrupado.items(), key=lambda x: x[0] if x[0] is not None else 999999):
+            valor_folha = sum(e["valor_complemento_total"] for e in escolas_lista)
+            total_valor += valor_folha
+            total_escolas += len(escolas_lista)
+            
+            folhas_info.append(ComplementoFolhaInfo(
+                numero_folha=folha,
+                total_escolas=len(escolas_lista),
+                valor_total_reais=round(valor_folha, 2),
+                escolas=[ComplementoEscolaPrevisaoInfo(**e) for e in escolas_lista]
+            ))
+        
+        return {
+            "success": True,
+            "total_folhas": len(folhas_info),
+            "total_escolas": total_escolas,
+            "valor_total_reais": round(total_valor, 2),
+            "folhas": folhas_info
+        }
+

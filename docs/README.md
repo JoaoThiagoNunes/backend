@@ -30,6 +30,7 @@ Documentação completa de todas as rotas da API.
 - [Rotas de Uploads](rotas/DOC_ROTAS_UPLOADS.md)
 - [Rotas de Cálculos](rotas/DOC_ROTAS_CALCULOS.md)
 - [Rotas de Parcelas](rotas/DOC_ROTAS_PARCELAS.md)
+- [Rotas de Complemento](rotas/DOC_ROTAS_COMPLEMENTO.md)
 
 ---
 

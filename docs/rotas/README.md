@@ -38,6 +38,11 @@ Rotas para cálculo de valores PROFIN.
 
 Rotas para divisão de valores em parcelas e por tipo de ensino.
 
+### 6. [📈 Rotas de Complemento](DOC_ROTAS_COMPLEMENTO.md)
+**Prefixo:** `/complemento`
+
+Rotas para upload, processamento e gerenciamento de complementos de alunos.
+
 ---
 
 ## 🔗 Links Rápidos
@@ -48,4 +53,5 @@ Rotas para divisão de valores em parcelas e por tipo de ensino.
 - [Uploads](DOC_ROTAS_UPLOADS.md)
 - [Cálculos](DOC_ROTAS_CALCULOS.md)
 - [Parcelas](DOC_ROTAS_PARCELAS.md)
+- [Complemento](DOC_ROTAS_COMPLEMENTO.md)
 

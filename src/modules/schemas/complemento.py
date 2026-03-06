@@ -24,12 +24,10 @@ class ComplementoEscolaInfo(BaseModel):
     
     # Valores individuais das cotas
     valor_complemento_gestao: Optional[float] = None
-    valor_complemento_projeto: Optional[float] = None
     valor_complemento_kit_escolar: Optional[float] = None
     valor_complemento_uniforme: Optional[float] = None
     valor_complemento_merenda: Optional[float] = None
     valor_complemento_sala_recurso: Optional[float] = None
-    valor_complemento_preuni: Optional[float] = None
     
     # Detalhes por modalidade (opcional)
     detalhes_modalidades: Optional[Dict[str, Any]] = None
@@ -92,3 +90,84 @@ class ComplementoEscolaHistoricoResponse(BaseModel):
     nome_uex: str
     dre: Optional[str]
     complementos: List[Dict[str, Any]]
+
+
+class LiberarComplementoRequest(BaseModel):
+    escola_ids: List[int]
+    numero_folha: int
+    complemento_upload_id: Optional[int] = None
+    ano_letivo_id: Optional[int] = None
+
+
+class LiberacaoComplementoInfo(BaseModel):
+    id: int
+    escola_id: int
+    nome_uex: str
+    dre: Optional[str]
+    complemento_upload_id: Optional[int]
+    liberada: bool
+    numero_folha: Optional[int]
+    data_liberacao: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class LiberarComplementoResponse(BaseModel):
+    success: bool
+    message: str
+    total_escolas_atualizadas: int
+    numero_folha: int
+    liberacoes: List[LiberacaoComplementoInfo]
+
+
+class ListarLiberacoesComplementoRequest(BaseModel):
+    complemento_upload_id: Optional[int] = None
+    numero_folha: Optional[int] = None
+    liberada: Optional[bool] = None
+    escola_id: Optional[int] = None
+
+
+class ListarLiberacoesComplementoResponse(BaseModel):
+    success: bool
+    total: int
+    liberacoes: List[LiberacaoComplementoInfo]
+
+
+class AtualizarLiberacaoComplementoRequest(BaseModel):
+    liberada: Optional[bool] = None
+    numero_folha: Optional[int] = None
+    data_liberacao: Optional[datetime] = None
+
+
+class LiberacaoComplementoResponse(BaseModel):
+    success: bool
+    message: str
+    liberacao: LiberacaoComplementoInfo
+
+
+class ComplementoEscolaPrevisaoInfo(BaseModel):
+    escola_id: int
+    nome_uex: str
+    dre: Optional[str]
+    liberada: bool
+    numero_folha: Optional[int] = None
+    valor_complemento_total: float
+    status: str  # 'AUMENTO', 'SEM_MUDANCA', 'DIMINUICAO'
+
+
+class ComplementoFolhaInfo(BaseModel):
+    numero_folha: Optional[int]
+    total_escolas: int
+    valor_total_reais: float
+    escolas: List[ComplementoEscolaPrevisaoInfo]
+
+
+class ComplementoResumoResponse(BaseModel):
+    success: bool
+    total_folhas: int
+    total_escolas: int
+    valor_total_reais: float
+    folhas: List[ComplementoFolhaInfo]
