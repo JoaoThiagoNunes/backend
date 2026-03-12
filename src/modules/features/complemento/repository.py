@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional, List
 from src.modules.shared.repositories import BaseRepository
-from .models import ComplementoUpload, ComplementoEscola, StatusComplemento, LiberacoesComplemento
+from .models import ComplementoUpload, ComplementoEscola, StatusComplemento, LiberacoesComplemento, ParcelasComplemento
 
 
 class ComplementoUploadRepository(BaseRepository[ComplementoUpload]):
@@ -84,9 +84,10 @@ class ComplementoEscolaRepository(BaseRepository[ComplementoEscola]):
     
     def find_by_escola(self, escola_id: int) -> List[ComplementoEscola]:
         """Busca histórico de complementos de uma escola específica."""
-        return self.db.query(ComplementoEscola).filter(
+        result = self.db.query(ComplementoEscola).filter(
             ComplementoEscola.escola_id == escola_id
         ).order_by(ComplementoEscola.processed_at.desc()).all()
+        return result
     
     def find_by_status(self, complemento_upload_id: int, status: StatusComplemento) -> List[ComplementoEscola]:
         """Busca escolas com um status específico em um complemento."""
@@ -170,3 +171,32 @@ class LiberacaoComplementoRepository(BaseRepository[LiberacoesComplemento]):
         """Cria um mapa de liberações por escola_id."""
         liberacoes = self.find_by_escolas_ids(escola_ids, complemento_upload_id)
         return {liberacao.escola_id: liberacao for liberacao in liberacoes}
+
+
+class ParcelasComplementoRepository(BaseRepository[ParcelasComplemento]):
+    """
+    Repositório para operações CRUD com ParcelasComplemento.
+    """
+    
+    def __init__(self, db: Session):
+        super().__init__(db, ParcelasComplemento)
+    
+    def find_by_complemento_escola_id(self, complemento_escola_id: int) -> List[ParcelasComplemento]:
+        """Busca todas as parcelas de um complemento_escola específico."""
+        return self.db.query(ParcelasComplemento).filter(
+            ParcelasComplemento.complemento_escola_id == complemento_escola_id
+        ).all()
+    
+    def find_by_complemento_escola_ids(self, complemento_escola_ids: List[int]) -> List[ParcelasComplemento]:
+        """Busca todas as parcelas de múltiplos complemento_escola."""
+        return self.db.query(ParcelasComplemento).filter(
+            ParcelasComplemento.complemento_escola_id.in_(complemento_escola_ids)
+        ).all()
+    
+    def delete_by_complemento_escola_ids(self, complemento_escola_ids: List[int]) -> int:
+        """Deleta todas as parcelas de múltiplos complemento_escola."""
+        deleted = self.db.query(ParcelasComplemento).filter(
+            ParcelasComplemento.complemento_escola_id.in_(complemento_escola_ids)
+        ).delete(synchronize_session=False)
+        self.db.flush()
+        return deleted

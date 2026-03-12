@@ -1,4 +1,4 @@
-from .models import ComplementoUpload, ComplementoEscola, StatusComplemento, LiberacoesComplemento
+from .models import ComplementoUpload, ComplementoEscola, StatusComplemento, LiberacoesComplemento, ParcelasComplemento
 from .service import ComplementoService
 from .repository import ComplementoUploadRepository, ComplementoEscolaRepository, LiberacaoComplementoRepository
 
@@ -7,6 +7,7 @@ __all__ = [
     "ComplementoEscola", 
     "StatusComplemento",
     "LiberacoesComplemento",
+    "ParcelasComplemento",
     "ComplementoService",
     "ComplementoUploadRepository",
     "ComplementoEscolaRepository",

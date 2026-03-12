@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 import pandas as pd
 from src.modules.features.escolas import Escola
 from src.modules.features.complemento.models import StatusComplemento
@@ -24,6 +24,7 @@ from src.modules.shared.constants import (
     VALOR_UNITARIO_KIT_ESCOLAR,
     VALOR_UNITARIO_UNIFORME,
     VALOR_UNITARIO_SALA_RECURSO,
+    PORCENTAGEM_TOTAL,
 )
 
 
@@ -178,6 +179,50 @@ def calcular_complemento_merenda(diferencas: Dict[str, int]) -> float:
     return round(valor_merenda, 2)
 
 
+def calcular_porcentagens_ensino_complemento(diferencas: Dict[str, int]) -> Tuple[float, float]:
+    """
+    Calcula as porcentagens de ensino fundamental e médio baseado nas diferenças do complemento.
+    
+    Usa os mesmos pesos do repasse normal, mas aplicados às diferenças de quantidades.
+    
+    Args:
+        diferencas: Dicionário com as diferenças de quantidades por modalidade
+        
+    Returns:
+        Tuple[float, float]: (porcentagem_fundamental, porcentagem_medio)
+    """
+    # Calcular valor ponderado para fundamental usando apenas diferenças positivas
+    valor_fundamental = (
+        (max(0, diferencas.get('fundamental_inicial', 0)) * PESO_FUNDAMENTAL_INICIAL) +
+        (max(0, diferencas.get('fundamental_final', 0)) * PESO_FUNDAMENTAL_FINAL) +
+        (max(0, diferencas.get('fundamental_integral', 0)) * PESO_FUNDAMENTAL_INTEGRAL) +
+        (max(0, diferencas.get('especial_fund_regular', 0)) * PESO_ESPECIAL_FUNDAMENTAL_REGULAR) +
+        (max(0, diferencas.get('especial_fund_integral', 0)) * PESO_ESPECIAL_FUNDAMENTAL_INTEGRAL)
+    )
+    
+    # Calcular valor ponderado para médio usando apenas diferenças positivas
+    valor_medio = (
+        (max(0, diferencas.get('profissionalizante', 0)) * PESO_PROFISSIONALIZANTE) +
+        (max(0, diferencas.get('profissionalizante_integrado', 0)) * PESO_PROFISSIONALIZANTE_INTEGRADO) +
+        (max(0, diferencas.get('alternancia', 0)) * PESO_ALTERNANCIA) +
+        (max(0, diferencas.get('ensino_medio_integral', 0)) * PESO_MEDIO_INTEGRAL) +
+        (max(0, diferencas.get('ensino_medio_regular', 0)) * PESO_MEDIO_REGULAR) +
+        (max(0, diferencas.get('especial_medio_parcial', 0)) * PESO_ESPECIAL_MEDIO_PARCIAL) +
+        (max(0, diferencas.get('especial_medio_integral', 0)) * PESO_ESPECIAL_MEDIO_INTEGRAL)
+    )
+    
+    denominador = valor_fundamental + valor_medio
+    
+    if denominador == 0:
+        # Se não há diferenças positivas, retornar 50/50 como padrão
+        return (50.0, 50.0)
+    
+    pct_fundamental = (valor_fundamental / denominador) * PORCENTAGEM_TOTAL
+    pct_medio = PORCENTAGEM_TOTAL - pct_fundamental
+    
+    return (round(pct_fundamental, 2), round(pct_medio, 2))
+
+
 def calcular_complemento_valores(diferencas: Dict[str, int]) -> Dict[str, float]:
     # Calcular gestão e merenda usando as funções específicas de complemento
     profin_gestao = calcular_complemento_gestao(diferencas)
@@ -207,6 +252,8 @@ def calcular_complemento_valores(diferencas: Dict[str, int]) -> Dict[str, float]
     # Calcular sala de recurso: diferença * 180
     sala_recurso_diferenca = diferencas.get('sala_recurso', 0)
     profin_sala_recurso = round(sala_recurso_diferenca * VALOR_UNITARIO_SALA_RECURSO, 2)
+    # Garantir que o valor não seja negativo
+    profin_sala_recurso = max(0.0, profin_sala_recurso)
     
     # Calcular valor total (gestão + merenda + kit + uniforme + sala_recurso para complemento)
     valor_total = profin_gestao + profin_merenda + profin_kit_escolar + profin_uniforme + profin_sala_recurso
@@ -221,6 +268,90 @@ def calcular_complemento_valores(diferencas: Dict[str, int]) -> Dict[str, float]
         "profin_preuni": 0.0,  # Não utilizado no complemento
         "valor_total": round(valor_total, 2)
     }
+
+
+def dividir_complemento_por_ensino(
+    valor_cota_reais: float,
+    porcentagem_fundamental: float,
+    porcentagem_medio: float,
+    numero_parcelas: int = 1
+) -> Dict[str, Dict[str, int]]:
+    """
+    Divide um valor de complemento entre ensino fundamental e médio.
+    
+    O complemento geralmente tem apenas 1 parcela (não dividido em 2 como o repasse normal),
+    mas ainda precisa ser separado por tipo de ensino.
+    
+    Args:
+        valor_cota_reais: Valor total da cota em reais
+        porcentagem_fundamental: Porcentagem de alunos em fundamental
+        porcentagem_medio: Porcentagem de alunos em médio
+        numero_parcelas: Número de parcelas (padrão: 1)
+        
+    Returns:
+        Dict[str, Dict[str, int]]: Dicionário com estrutura de parcelas separadas por ensino
+    """
+    # Converter para centavos
+    valor_centavos = int(round(valor_cota_reais * 100))
+    
+    if numero_parcelas == 1:
+        # Apenas 1 parcela - dividir por ensino
+        valor_fundamental = int((valor_centavos * porcentagem_fundamental) / 100.0)
+        valor_medio = int((valor_centavos * porcentagem_medio) / 100.0)
+        
+        # Distribuir o resto (se houver)
+        resto = valor_centavos - (valor_fundamental + valor_medio)
+        if resto != 0:
+            # Distribuir resto para o tipo de ensino com maior porcentagem
+            if porcentagem_fundamental >= porcentagem_medio:
+                valor_fundamental += resto
+            else:
+                valor_medio += resto
+        
+        return {
+            "parcela_1": {
+                "fundamental": valor_fundamental,
+                "medio": valor_medio
+            }
+        }
+    else:
+        # Dividir em 2 parcelas (se necessário no futuro)
+        parcela_1_centavos = valor_centavos // 2
+        parcela_2_centavos = valor_centavos - parcela_1_centavos
+        
+        # Dividir cada parcela por ensino
+        parcela_1_fund = int((parcela_1_centavos * porcentagem_fundamental) / 100.0)
+        parcela_1_medio = int((parcela_1_centavos * porcentagem_medio) / 100.0)
+        
+        parcela_2_fund = int((parcela_2_centavos * porcentagem_fundamental) / 100.0)
+        parcela_2_medio = int((parcela_2_centavos * porcentagem_medio) / 100.0)
+        
+        # Distribuir restos
+        resto_1 = parcela_1_centavos - (parcela_1_fund + parcela_1_medio)
+        resto_2 = parcela_2_centavos - (parcela_2_fund + parcela_2_medio)
+        
+        if resto_1 != 0:
+            if porcentagem_fundamental >= porcentagem_medio:
+                parcela_1_fund += resto_1
+            else:
+                parcela_1_medio += resto_1
+        
+        if resto_2 != 0:
+            if porcentagem_fundamental >= porcentagem_medio:
+                parcela_2_fund += resto_2
+            else:
+                parcela_2_medio += resto_2
+        
+        return {
+            "parcela_1": {
+                "fundamental": parcela_1_fund,
+                "medio": parcela_1_medio
+            },
+            "parcela_2": {
+                "fundamental": parcela_2_fund,
+                "medio": parcela_2_medio
+            }
+        }
 
 
 def criar_row_diferenca(diferencas: Dict[str, int]) -> pd.Series:

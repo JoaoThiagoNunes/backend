@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, Enum as SQLEnum, Boolean, UniqueConstraint
+from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, Enum as SQLEnum, Boolean, UniqueConstraint, Enum
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from src.modules.shared.base import Base
+from src.modules.features.calculos import TipoCota, TipoEnsino
 import enum
 
 
@@ -123,6 +124,62 @@ class ComplementoEscola(Base):
     
     def __repr__(self):
         return f"<ComplementoEscola(escola_id={self.escola_id}, status={self.status.value}, valor={self.valor_complemento_total})>"
+    
+    # Relacionamento com parcelas
+    parcelas = relationship(
+        "ParcelasComplemento",
+        back_populates="complemento_escola",
+        cascade="all, delete-orphan"
+    )
+
+
+class ParcelasComplemento(Base):
+    __tablename__ = "parcelas_complemento"
+    __table_args__ = (
+        UniqueConstraint(
+            'complemento_escola_id',
+            'tipo_cota',
+            'numero_parcela',
+            'tipo_ensino',
+            name='uq_parcela_complemento_escola_cota_parcela_ensino'
+        ),
+    )
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Chave estrangeira para ComplementoEscola
+    complemento_escola_id = Column(Integer, ForeignKey("complemento_escolas.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Tipo de cota (gestao, merenda, kit_escolar, uniforme, sala_recurso)
+    tipo_cota = Column(Enum(TipoCota), nullable=False, index=True)
+    
+    # Número da parcela (1 ou 2, se aplicável)
+    numero_parcela = Column(Integer, nullable=False, index=True)
+    
+    # Tipo de ensino (fundamental ou medio)
+    tipo_ensino = Column(Enum(TipoEnsino), nullable=False, index=True)
+    
+    # Valor em centavos (inteiro para evitar problemas com floats)
+    valor_centavos = Column(Integer, nullable=False, default=0)
+    
+    # Porcentagem de alunos do tipo de ensino (0-100)
+    porcentagem_alunos = Column(Float, nullable=False, default=0.0)
+    
+    # Data de criação
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    
+    # Versão do cálculo (para auditoria)
+    calculation_version = Column(String(50), nullable=True)
+    
+    # Relacionamento
+    complemento_escola = relationship("ComplementoEscola", back_populates="parcelas")
+    
+    def __repr__(self):
+        return f"<ParcelasComplemento(complemento_escola_id={self.complemento_escola_id}, cota={self.tipo_cota.value}, parcela={self.numero_parcela}, ensino={self.tipo_ensino.value}, valor={self.valor_centavos/100:.2f})>"
+    
+    @property
+    def valor_reais(self) -> float:
+        return self.valor_centavos / 100.0
 
 
 class LiberacoesComplemento(Base):

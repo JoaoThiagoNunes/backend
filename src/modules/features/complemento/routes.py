@@ -17,9 +17,14 @@ from src.modules.schemas.complemento import (
     ListarLiberacoesComplementoResponse,
     AtualizarLiberacaoComplementoRequest,
     LiberacaoComplementoResponse,
-    ComplementoResumoResponse
+    ComplementoResumoResponse,
+    SepararComplementoRequest,
+    SepararComplementoResponse
 )
 from .repository import LiberacaoComplementoRepository
+from .models import ComplementoEscola
+from .models import ComplementoEscola
+from .models import ComplementoEscola
 
 
 complemento_router = APIRouter()
@@ -208,21 +213,67 @@ def obter_complementos_escola(
     complemento_escola_repo = ComplementoEscolaRepository(db)
     complementos = complemento_escola_repo.find_by_escola(escola_id)
     
+    # Log de debug para investigar array vazio
+    logger.info(f"GET /complemento/escola/{escola_id}: Encontrados {len(complementos)} complemento(s)")
+    if len(complementos) == 0:
+        # Verificar se há complementos no banco para qualquer escola
+        total_complementos = db.query(ComplementoEscola).count()
+        logger.warning(f"Nenhum complemento encontrado para escola_id={escola_id}. Total de complementos no banco: {total_complementos}")
+        # Verificar se há complementos para outras escolas próximas
+        complementos_proximos = db.query(ComplementoEscola).filter(
+            ComplementoEscola.escola_id.between(escola_id - 10, escola_id + 10)
+        ).limit(5).all()
+        if complementos_proximos:
+            escola_ids_proximos = [c.escola_id for c in complementos_proximos]
+            logger.info(f"Encontrados complementos para escolas próximas: {escola_ids_proximos}")
+    else:
+        # Logar detalhes dos complementos encontrados para debug
+        for c in complementos:
+            logger.debug(f"Complemento encontrado: id={c.id}, escola_id={c.escola_id}, upload_id={c.complemento_upload_id}, "
+                        f"valor_total={c.valor_complemento_total}, status={c.status.value}")
+    
     complementos_info = []
     for c in complementos:
-        complementos_info.append({
-            'complemento_upload_id': c.complemento_upload_id,
-            'data': c.processed_at,
-            'status': c.status.value,
-            'total_alunos_diferenca': c.total_alunos_diferenca,
-            'valor_complemento_total': c.valor_complemento_total,
-            'valor_complemento_gestao': c.valor_complemento_gestao,
-            'valor_complemento_kit_escolar': c.valor_complemento_kit_escolar,
-            'valor_complemento_uniforme': c.valor_complemento_uniforme,
-            'valor_complemento_merenda': c.valor_complemento_merenda,
-            'valor_complemento_sala_recurso': c.valor_complemento_sala_recurso
-        })
-    
+        try:
+            # Buscar parcelas separadas por ensino se existirem
+            parcelas_info = ComplementoService.obter_parcelas_complemento_formatadas(db, c)
+            
+            # Validar e converter valores None
+            complemento_info = {
+                'complemento_upload_id': c.complemento_upload_id,
+                'data': c.processed_at,
+                'status': c.status.value,
+                'total_alunos_diferenca': c.total_alunos_diferenca or 0,
+                'valor_complemento_total': c.valor_complemento_total or 0.0,
+                'valor_complemento_gestao': c.valor_complemento_gestao or 0.0,
+                'valor_complemento_kit_escolar': c.valor_complemento_kit_escolar or 0.0,
+                'valor_complemento_uniforme': c.valor_complemento_uniforme or 0.0,
+                'valor_complemento_merenda': c.valor_complemento_merenda or 0.0,
+                'valor_complemento_sala_recurso': c.valor_complemento_sala_recurso or 0.0,
+                'parcelas': [p.dict() for p in parcelas_info["parcelas"]] if parcelas_info.get("parcelas") else None,
+                'porcentagem_fundamental': parcelas_info.get("porcentagem_fundamental"),
+                'porcentagem_medio': parcelas_info.get("porcentagem_medio")
+            }
+            complementos_info.append(complemento_info)
+        except Exception as e:
+            logger.error(f"Erro ao processar complemento {c.id} para escola {escola_id}: {str(e)}", exc_info=True)
+            # Adicionar complemento mesmo com erro, mas sem parcelas
+            complemento_info = {
+                'complemento_upload_id': c.complemento_upload_id,
+                'data': c.processed_at,
+                'status': c.status.value,
+                'total_alunos_diferenca': c.total_alunos_diferenca or 0,
+                'valor_complemento_total': c.valor_complemento_total or 0.0,
+                'valor_complemento_gestao': c.valor_complemento_gestao or 0.0,
+                'valor_complemento_kit_escolar': c.valor_complemento_kit_escolar or 0.0,
+                'valor_complemento_uniforme': c.valor_complemento_uniforme or 0.0,
+                'valor_complemento_merenda': c.valor_complemento_merenda or 0.0,
+                'valor_complemento_sala_recurso': c.valor_complemento_sala_recurso or 0.0,
+                'parcelas': None,
+                'porcentagem_fundamental': None,
+                'porcentagem_medio': None
+            }
+            complementos_info.append(complemento_info)
     return ComplementoEscolaHistoricoResponse(
         escola_id=escola.id,
         nome_uex=escola.nome_uex,
@@ -342,3 +393,30 @@ def atualizar_liberacao_complemento(
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar liberação: {str(e)}")
 
 
+@complemento_router.post("/separar", response_model=SepararComplementoResponse, tags=["Complemento"])
+def separar_complementos_por_ensino(
+    request: SepararComplementoRequest,
+    db: Session = Depends(get_db)
+) -> SepararComplementoResponse:
+    """
+    Separa os valores de complemento entre ensino fundamental e médio.
+    
+    Similar ao processo de separação de parcelas normais, mas aplicado aos complementos.
+    Calcula porcentagens baseado nas diferenças de quantidades e divide cada cota
+    (gestão, merenda, kit escolar, uniforme, sala de recurso) entre fundamental e médio.
+    """
+    try:
+        resultado = ComplementoService.separar_complementos_por_ensino(
+            db,
+            complemento_upload_id=request.complemento_upload_id,
+            ano_letivo_id=request.ano_letivo_id,
+            recalcular=request.recalcular,
+            calculation_version=request.calculation_version
+        )
+        
+        return SepararComplementoResponse(**resultado)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("ERRO AO SEPARAR COMPLEMENTOS POR ENSINO")
+        raise HTTPException(status_code=500, detail=f"Erro ao separar complementos: {str(e)}")

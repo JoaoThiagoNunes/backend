@@ -32,6 +32,11 @@ class ComplementoEscolaInfo(BaseModel):
     # Detalhes por modalidade (opcional)
     detalhes_modalidades: Optional[Dict[str, Any]] = None
     
+    # Parcelas separadas por ensino (opcional - apenas se separação foi feita)
+    parcelas: Optional[List["ComplementoParcelaDetalhe"]] = None
+    porcentagem_fundamental: Optional[float] = None
+    porcentagem_medio: Optional[float] = None
+    
     class Config:
         from_attributes = True
 
@@ -156,6 +161,10 @@ class ComplementoEscolaPrevisaoInfo(BaseModel):
     numero_folha: Optional[int] = None
     valor_complemento_total: float
     status: str  # 'AUMENTO', 'SEM_MUDANCA', 'DIMINUICAO'
+    # Parcelas separadas por ensino (opcional - apenas se separação foi feita)
+    parcelas_por_cota: Optional[List["ParcelaComplementoPorCota"]] = None
+    porcentagem_fundamental: Optional[float] = None
+    porcentagem_medio: Optional[float] = None
 
 
 class ComplementoFolhaInfo(BaseModel):
@@ -171,3 +180,63 @@ class ComplementoResumoResponse(BaseModel):
     total_escolas: int
     valor_total_reais: float
     folhas: List[ComplementoFolhaInfo]
+
+
+class ParcelaComplementoInfo(BaseModel):
+    tipo_cota: str
+    numero_parcela: int
+    tipo_ensino: str
+    valor_reais: float
+    valor_centavos: int
+    porcentagem_alunos: float
+    
+    class Config:
+        from_attributes = True
+
+
+class ComplementoParcelaDetalhe(BaseModel):
+    id: int
+    tipo_cota: str
+    numero_parcela: int
+    tipo_ensino: str
+    valor_reais: float
+    valor_centavos: int
+    porcentagem_alunos: float
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ParcelaComplementoPorCota(BaseModel):
+    tipo_cota: str
+    valor_total_reais: float
+    parcela_1: Dict[str, float]  # {"fundamental": valor, "medio": valor}
+    porcentagens: Dict[str, float]  # {"fundamental": %, "medio": %}
+
+
+class EscolaComplementoParcelas(BaseModel):
+    escola_id: int
+    nome_uex: str
+    dre: Optional[str] = None
+    porcentagem_fundamental: float
+    porcentagem_medio: float
+    parcelas_por_cota: List[ParcelaComplementoPorCota]
+
+
+class SepararComplementoRequest(BaseModel):
+    complemento_upload_id: Optional[int] = None
+    ano_letivo_id: Optional[int] = None
+    recalcular: bool = False  # Se True, recalcula mesmo que já existam parcelas
+    calculation_version: Optional[str] = None  # Versão do cálculo para auditoria
+
+
+class SepararComplementoResponse(BaseModel):
+    success: bool
+    message: str
+    total_escolas: int
+    escolas_processadas: int
+    total_parcelas_criadas: int
+    complemento_upload_id: int
+    escolas: List[EscolaComplementoParcelas]
+    calculation_version: Optional[str] = None

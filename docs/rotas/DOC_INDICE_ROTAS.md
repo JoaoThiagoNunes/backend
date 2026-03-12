@@ -105,6 +105,7 @@ Rotas para:
 
 **Principais rotas:**
 - `POST /complemento/upload` - Upload de planilha de complemento
+- `POST /complemento/separar` - Separar complementos por tipo de ensino (fundamental/médio) ⭐ **NOVO**
 - `GET /complemento/repasse` - Resumo agrupado por folhas
 - `GET /complemento/{complemento_upload_id}` - Detalhes de um upload
 - `GET /complemento/escola/{escola_id}` - Histórico de uma escola
@@ -207,6 +208,7 @@ GET /admin/status-dados
 
 /complemento
 ├── POST   /upload                    # Upload de planilha
+├── POST   /separar                   # Separar por tipo de ensino ⭐ NOVO
 ├── GET    /repasse                   # Resumo agrupado por folhas
 ├── GET    /                          # Listar uploads (paginado)
 ├── GET    /{complemento_upload_id}   # Detalhes de um upload
@@ -226,6 +228,7 @@ GET /admin/status-dados
 - [Documentação Completa - Cálculos](DOC_ROTAS_CALCULOS.md)
 - [Documentação Completa - Parcelas](DOC_ROTAS_PARCELAS.md)
 - [Documentação Completa - Complemento](DOC_ROTAS_COMPLEMENTO.md)
+- [Documentação Frontend - Separação de Complementos](../frontend/DOC_FRONTEND_SEPARACAO_COMPLEMENTO.md) ⭐ **NOVO**
 
 ---
 
@@ -271,5 +274,8 @@ curl -X POST http://localhost:8000/parcelas \
 
 ---
 
-**Última atualização:** 2025-11-06
+**Última atualização:** 2026-03-11
+
+**Novidades:**
+- ✅ Separação de complementos por tipo de ensino (fundamental/médio) - Ver [Documentação Frontend](../frontend/DOC_FRONTEND_SEPARACAO_COMPLEMENTO.md)
 

@@ -47,6 +47,23 @@ Similar ao sistema de parcelas, o complemento permite criar múltiplas folhas pa
 
 Quando `complemento_upload_id` não é informado, o sistema automaticamente usa o upload mais recente do ano letivo especificado (ou ano ativo).
 
+### Separação por Tipo de Ensino
+
+Os valores de complemento podem ser separados entre ensino **fundamental** e **médio**, similar ao processo de separação de parcelas normais:
+
+- **Porcentagens Calculadas:** Baseadas nas diferenças de quantidades do complemento, usando os mesmos pesos do repasse normal
+- **1 Parcela Única:** Cada cota de complemento é dividida em 1 parcela única (não 2 como nas parcelas normais)
+- **Divisão por Ensino:** Cada parcela é subdividida entre fundamental e médio baseado nas porcentagens
+- **Cotas Processadas:** Gestão, Merenda, Kit Escolar, Uniforme e Sala de Recurso
+- **Armazenamento:** Valores são armazenados em centavos (inteiros) para precisão
+
+**Exemplo:**
+- Complemento de Gestão: R$ 5.000,00
+- Porcentagem: 52.5% fundamental, 47.5% médio
+- Resultado:
+  - Fundamental: R$ 2.625,00
+  - Médio: R$ 2.375,00
+
 ---
 
 ## 📍 Rotas Disponíveis
@@ -140,7 +157,35 @@ Retorna um resumo de todos os complementos agrupados por folhas, incluindo total
           "liberada": true,
           "numero_folha": 1,
           "valor_complemento_total": 9000.00,
-          "status": "AUMENTO"
+          "status": "AUMENTO",
+          "parcelas_por_cota": [
+            {
+              "tipo_cota": "CUSTEIO",
+              "valor_total_reais": 2000.00,
+              "parcela_1": {
+                "fundamental": 1050.00,
+                "medio": 950.00
+              },
+              "porcentagens": {
+                "fundamental": 52.5,
+                "medio": 47.5
+              }
+            },
+            {
+              "tipo_cota": "MERENDA",
+              "valor_total_reais": 3000.00,
+              "parcela_1": {
+                "fundamental": 1575.00,
+                "medio": 1425.00
+              },
+              "porcentagens": {
+                "fundamental": 52.5,
+                "medio": 47.5
+              }
+            }
+          ],
+          "porcentagem_fundamental": 52.5,
+          "porcentagem_medio": 47.5
         }
       ]
     },
@@ -168,7 +213,12 @@ Retorna um resumo de todos os complementos agrupados por folhas, incluindo total
   - `numero_folha`: Número da folha (ou `null` se não liberada)
   - `total_escolas`: Quantidade de escolas nesta folha
   - `valor_total_reais`: Soma dos valores de complemento desta folha
-  - `escolas`: Lista de escolas nesta folha
+  - `escolas`: Lista de escolas nesta folha, cada uma contendo:
+    - Campos padrão: informações da escola, status, valores totais
+    - **Novos campos (opcionais):** Valores separados por tipo de ensino (apenas se `POST /complemento/separar` foi executado):
+      - `parcelas_por_cota`: Lista de cotas com valores separados por ensino (fundamental/médio)
+      - `porcentagem_fundamental`: Porcentagem de alunos em ensino fundamental
+      - `porcentagem_medio`: Porcentagem de alunos em ensino médio
 
 **Exemplo de Uso:**
 ```bash
@@ -271,7 +321,31 @@ Retorna o histórico completo de todos os complementos processados para uma esco
       "valor_complemento_kit_escolar": 1500.00,
       "valor_complemento_uniforme": 1500.00,
       "valor_complemento_merenda": 3000.00,
-      "valor_complemento_sala_recurso": 1000.00
+      "valor_complemento_sala_recurso": 1000.00,
+      "parcelas": [
+        {
+          "id": 1,
+          "tipo_cota": "CUSTEIO",
+          "numero_parcela": 1,
+          "tipo_ensino": "FUNDAMENTAL",
+          "valor_reais": 1050.00,
+          "valor_centavos": 105000,
+          "porcentagem_alunos": 52.5,
+          "created_at": "2026-03-11T11:49:43"
+        },
+        {
+          "id": 2,
+          "tipo_cota": "CUSTEIO",
+          "numero_parcela": 1,
+          "tipo_ensino": "MEDIO",
+          "valor_reais": 950.00,
+          "valor_centavos": 95000,
+          "porcentagem_alunos": 47.5,
+          "created_at": "2026-03-11T11:49:43"
+        }
+      ],
+      "porcentagem_fundamental": 52.5,
+      "porcentagem_medio": 47.5
     },
     {
       "complemento_upload_id": 12,
@@ -283,7 +357,10 @@ Retorna o histórico completo de todos os complementos processados para uma esco
       "valor_complemento_kit_escolar": 0.00,
       "valor_complemento_uniforme": 0.00,
       "valor_complemento_merenda": 0.00,
-      "valor_complemento_sala_recurso": 0.00
+      "valor_complemento_sala_recurso": 0.00,
+      "parcelas": null,
+      "porcentagem_fundamental": null,
+      "porcentagem_medio": null
     }
   ]
 }
@@ -292,6 +369,11 @@ Retorna o histórico completo de todos os complementos processados para uma esco
 **Campos de Resposta:**
 - Informações da escola (ID, nome, DRE)
 - `complementos`: Lista cronológica de todos os complementos processados para esta escola
+  - Campos padrão: informações do complemento, valores por cota
+  - **Novos campos (opcionais):** Valores separados por tipo de ensino (apenas se `POST /complemento/separar` foi executado):
+    - `parcelas`: Lista de parcelas detalhadas separadas por ensino (fundamental/médio)
+    - `porcentagem_fundamental`: Porcentagem de alunos em ensino fundamental
+    - `porcentagem_medio`: Porcentagem de alunos em ensino médio
 
 **Erros Possíveis:**
 - `404 Not Found`: Escola não encontrada
@@ -597,6 +679,283 @@ PUT /complemento/liberacoes/50
 
 ---
 
+### 8. **POST /separar** - Separar Complementos por Tipo de Ensino
+
+Separa os valores de complemento entre ensino fundamental e médio, similar ao processo de separação de parcelas normais.
+
+**Endpoint:** `POST /complemento/separar`
+
+**Autenticação:** Não requerida
+
+**Request Body:**
+```json
+{
+  "complemento_upload_id": null,
+  "ano_letivo_id": null,
+  "recalcular": false,
+  "calculation_version": null
+}
+```
+
+**Campos:**
+- `complemento_upload_id` (opcional, int): ID do upload de complemento. Se `null`, usa o mais recente do ano letivo.
+- `ano_letivo_id` (opcional, int): ID do ano letivo. Se `null`, usa o ano ativo.
+- `recalcular` (opcional, boolean): Se `true`, recalcula mesmo que já existam parcelas. Padrão: `false`.
+- `calculation_version` (opcional, string): Versão do cálculo para auditoria. Se não fornecido, gera automaticamente (ex: `v1_20260311_114943`).
+
+**Response 200 OK:**
+```json
+{
+  "success": true,
+  "message": "Separados 150 complemento(s) em 1500 parcela(s)",
+  "total_escolas": 150,
+  "escolas_processadas": 150,
+  "total_parcelas_criadas": 1500,
+  "complemento_upload_id": 15,
+  "calculation_version": "v1_20260311_114943",
+  "escolas": [
+    {
+      "escola_id": 100,
+      "nome_uex": "ESCOLA MUNICIPAL EXEMPLO",
+      "dre": "DRE-01",
+      "porcentagem_fundamental": 52.5,
+      "porcentagem_medio": 47.5,
+      "parcelas_por_cota": [
+        {
+          "tipo_cota": "CUSTEIO",
+          "valor_total_reais": 5000.00,
+          "parcela_1": {
+            "fundamental": 2625.00,
+            "medio": 2375.00
+          },
+          "porcentagens": {
+            "fundamental": 52.5,
+            "medio": 47.5
+          }
+        },
+        {
+          "tipo_cota": "MERENDA",
+          "valor_total_reais": 3000.00,
+          "parcela_1": {
+            "fundamental": 1575.00,
+            "medio": 1425.00
+          },
+          "porcentagens": {
+            "fundamental": 52.5,
+            "medio": 47.5
+          }
+        },
+        {
+          "tipo_cota": "KIT_ESCOLAR",
+          "valor_total_reais": 1500.00,
+          "parcela_1": {
+            "fundamental": 787.50,
+            "medio": 712.50
+          },
+          "porcentagens": {
+            "fundamental": 52.5,
+            "medio": 47.5
+          }
+        },
+        {
+          "tipo_cota": "UNIFORME",
+          "valor_total_reais": 600.00,
+          "parcela_1": {
+            "fundamental": 315.00,
+            "medio": 285.00
+          },
+          "porcentagens": {
+            "fundamental": 52.5,
+            "medio": 47.5
+          }
+        },
+        {
+          "tipo_cota": "SALA_RECURSO",
+          "valor_total_reais": 2000.00,
+          "parcela_1": {
+            "fundamental": 1050.00,
+            "medio": 950.00
+          },
+          "porcentagens": {
+            "fundamental": 52.5,
+            "medio": 47.5
+          }
+        }
+      ]
+    }
+    // ... mais escolas
+  ]
+}
+```
+
+**Campos de Resposta:**
+- `success`: Indica se a operação foi bem-sucedida
+- `message`: Mensagem descritiva do resultado
+- `total_escolas`: Total de escolas com complemento processadas
+- `escolas_processadas`: Quantidade de escolas que tiveram parcelas criadas
+- `total_parcelas_criadas`: Total de parcelas criadas (escolas × cotas × 2 tipos de ensino)
+- `complemento_upload_id`: ID do upload de complemento usado
+- `calculation_version`: Versão do cálculo para auditoria
+- `escolas`: Lista de escolas com suas parcelas separadas por tipo de ensino
+
+**Estrutura de Parcelas por Cota:**
+- Cada cota do complemento é separada em **1 parcela única** (diferente das parcelas normais que têm 2)
+- Cada parcela é dividida entre `fundamental` e `medio` baseado nas porcentagens calculadas
+- As porcentagens são calculadas usando os mesmos pesos do repasse normal, aplicados às **diferenças** de quantidades do complemento
+
+**Cotas Processadas:**
+1. **Gestão/Custeio** (`CUSTEIO`)
+2. **Merenda** (`MERENDA`)
+3. **Kit Escolar** (`KIT_ESCOLAR`)
+4. **Uniforme** (`UNIFORME`)
+5. **Sala de Recurso** (`SALA_RECURSO`)
+
+**Nota:** As cotas "Projeto" e "Preuni" não são processadas no complemento.
+
+**Cálculo de Porcentagens:**
+
+As porcentagens são calculadas baseadas nas **diferenças** de quantidades do complemento, usando os mesmos pesos do repasse normal:
+
+**Fundamental:**
+- Fundamental Inicial: peso 1.0
+- Fundamental Final: peso 1.10
+- Fundamental Integral: peso 1.40
+- Especial Fundamental Regular: peso 1.0
+- Especial Fundamental Integral: peso 1.40
+
+**Médio:**
+- Profissionalizante: peso 1.30
+- Profissionalizante Integrado: peso 1.30
+- Alternância: peso 1.40
+- Ensino Médio Integral: peso 1.40
+- Ensino Médio Regular: peso 1.25
+- Especial Médio Parcial: peso 1.25
+- Especial Médio Integral: peso 1.40
+
+**Fórmula:**
+```
+Valor_Fundamental = Σ(diferença_modalidade_fundamental × peso_modalidade)
+Valor_Médio = Σ(diferença_modalidade_médio × peso_modalidade)
+% Fundamental = (Valor_Fundamental / (Valor_Fundamental + Valor_Médio)) × 100
+% Médio = 100% - % Fundamental
+```
+
+**Comportamento:**
+
+1. **Idempotência:** Se `recalcular=false` e já existem parcelas, retorna as parcelas existentes sem recriar.
+2. **Recálculo:** Se `recalcular=true`, deleta parcelas antigas e cria novas.
+3. **Filtro Automático:** Processa apenas complementos com status `AUMENTO` e valores > 0.
+4. **Valores em Centavos:** Internamente, os valores são armazenados em centavos (inteiros), mas a resposta retorna em reais.
+
+**Erros Possíveis:**
+- `404 Not Found`: Nenhum complemento encontrado para o ano letivo ou complemento_upload_id especificado.
+- `404 Not Found`: Nenhum complemento com valores encontrado para separar.
+- `500 Internal Server Error`: Erro ao processar a separação.
+
+**Exemplo de Uso:**
+
+Separar complementos (primeira vez):
+```bash
+curl -X POST http://localhost:8000/complemento/separar \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ano_letivo_id": 2,
+    "recalcular": false
+  }'
+```
+
+Recalcular parcelas existentes:
+```bash
+curl -X POST http://localhost:8000/complemento/separar \
+  -H "Content-Type: application/json" \
+  -d '{
+    "complemento_upload_id": 15,
+    "recalcular": true,
+    "calculation_version": "v2_20260311_120000"
+  }'
+```
+
+**Integração Frontend:**
+
+```typescript
+interface SepararComplementoRequest {
+  complemento_upload_id?: number;
+  ano_letivo_id?: number;
+  recalcular?: boolean;
+  calculation_version?: string;
+}
+
+interface ParcelaComplementoPorCota {
+  tipo_cota: string;
+  valor_total_reais: number;
+  parcela_1: {
+    fundamental: number;
+    medio: number;
+  };
+  porcentagens: {
+    fundamental: number;
+    medio: number;
+  };
+}
+
+interface EscolaComplementoParcelas {
+  escola_id: number;
+  nome_uex: string;
+  dre?: string;
+  porcentagem_fundamental: number;
+  porcentagem_medio: number;
+  parcelas_por_cota: ParcelaComplementoPorCota[];
+}
+
+interface SepararComplementoResponse {
+  success: boolean;
+  message: string;
+  total_escolas: number;
+  escolas_processadas: number;
+  total_parcelas_criadas: number;
+  complemento_upload_id: number;
+  escolas: EscolaComplementoParcelas[];
+  calculation_version?: string;
+}
+
+// Exemplo de uso
+async function separarComplementos(
+  complementoUploadId?: number,
+  anoLetivoId?: number,
+  recalcular = false
+): Promise<SepararComplementoResponse> {
+  const response = await fetch('http://localhost:8000/complemento/separar', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      complemento_upload_id: complementoUploadId,
+      ano_letivo_id: anoLetivoId,
+      recalcular,
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Erro ao separar complementos: ${response.statusText}`);
+  }
+  
+  return response.json();
+}
+```
+
+**Diferenças entre Complemento e Parcelas Normais:**
+
+| Aspecto | Complemento | Parcelas Normais |
+|---------|-------------|------------------|
+| Número de parcelas | 1 parcela única | 2 parcelas |
+| Base de cálculo | Diferenças de quantidades | Quantidades totais |
+| Cotas processadas | 5 cotas (Gestão, Merenda, Kit, Uniforme, Sala) | 8 cotas (inclui Preuni, Climatização, etc.) |
+| Porcentagens | Baseadas nas diferenças | Baseadas nas quantidades totais |
+| Quando usar | Após upload de complemento | Após cálculo de valores |
+
+---
+
 ## 📊 Mapa de Rotas
 
 ```
@@ -608,7 +967,8 @@ PUT /complemento/liberacoes/50
 ├── GET    /escola/{escola_id}        # Histórico de uma escola
 ├── POST   /liberar                   # Liberar escolas para folha
 ├── GET    /liberacoes                # Listar liberações
-└── PUT    /liberacoes/{liberacao_id} # Atualizar liberação
+├── PUT    /liberacoes/{liberacao_id} # Atualizar liberação
+└── POST   /separar                   # Separar por tipo de ensino
 ```
 
 ---
@@ -650,10 +1010,18 @@ curl -X POST http://localhost:8000/complemento/upload \
   -F "file=@complemento_2026.xlsx" \
   -F "ano_letivo_id=2"
 
-# 2. Ver resumo agrupado por folhas
+# 2. Separar complementos por tipo de ensino (fundamental/médio)
+curl -X POST http://localhost:8000/complemento/separar \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ano_letivo_id": 2,
+    "recalcular": false
+  }'
+
+# 3. Ver resumo agrupado por folhas
 curl "http://localhost:8000/complemento/repasse?ano_letivo_id=2"
 
-# 3. Liberar escolas para folha 1
+# 4. Liberar escolas para folha 1
 curl -X POST http://localhost:8000/complemento/liberar \
   -H "Content-Type: application/json" \
   -d '{
@@ -661,10 +1029,14 @@ curl -X POST http://localhost:8000/complemento/liberar \
     "numero_folha": 1
   }'
 
-# 4. Listar liberações da folha 1
+# 5. Listar liberações da folha 1
 curl "http://localhost:8000/complemento/liberacoes?numero_folha=1"
 ```
 
 ---
 
-**Última atualização:** 2026-01-15
+**Última atualização:** 2026-03-11
+
+**Novidades:**
+- ✅ Separação de complementos por tipo de ensino (fundamental/médio) - Rota `/separar`
+- ✅ Valores separados por ensino agora retornados em `GET /complemento/escola/{escola_id}` e `GET /complemento/repasse`
