@@ -180,17 +180,6 @@ def calcular_complemento_merenda(diferencas: Dict[str, int]) -> float:
 
 
 def calcular_porcentagens_ensino_complemento(diferencas: Dict[str, int]) -> Tuple[float, float]:
-    """
-    Calcula as porcentagens de ensino fundamental e médio baseado nas diferenças do complemento.
-    
-    Usa os mesmos pesos do repasse normal, mas aplicados às diferenças de quantidades.
-    
-    Args:
-        diferencas: Dicionário com as diferenças de quantidades por modalidade
-        
-    Returns:
-        Tuple[float, float]: (porcentagem_fundamental, porcentagem_medio)
-    """
     # Calcular valor ponderado para fundamental usando apenas diferenças positivas
     valor_fundamental = (
         (max(0, diferencas.get('fundamental_inicial', 0)) * PESO_FUNDAMENTAL_INICIAL) +
@@ -276,21 +265,6 @@ def dividir_complemento_por_ensino(
     porcentagem_medio: float,
     numero_parcelas: int = 1
 ) -> Dict[str, Dict[str, int]]:
-    """
-    Divide um valor de complemento entre ensino fundamental e médio.
-    
-    O complemento geralmente tem apenas 1 parcela (não dividido em 2 como o repasse normal),
-    mas ainda precisa ser separado por tipo de ensino.
-    
-    Args:
-        valor_cota_reais: Valor total da cota em reais
-        porcentagem_fundamental: Porcentagem de alunos em fundamental
-        porcentagem_medio: Porcentagem de alunos em médio
-        numero_parcelas: Número de parcelas (padrão: 1)
-        
-    Returns:
-        Dict[str, Dict[str, int]]: Dicionário com estrutura de parcelas separadas por ensino
-    """
     # Converter para centavos
     valor_centavos = int(round(valor_cota_reais * 100))
     

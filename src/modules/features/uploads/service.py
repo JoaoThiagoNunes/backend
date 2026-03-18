@@ -146,6 +146,12 @@ class UploadService:
         filename: str,
         ano_letivo_id: Optional[int] = None
     ) -> Dict[str, Any]:
+        def _normalize_cnpj(value: Optional[str]) -> Optional[str]:
+            if not value:
+                return None
+            digits = "".join(ch for ch in str(value) if ch.isdigit())
+            return digits or None
+
         ano_letivo, ano_letivo_id = obter_ano_letivo(db, ano_letivo_id)
         logger.info(f"UPLOAD PARA ANO LETIVO: {ano_letivo.ano} (Status: {ano_letivo.status.value})")
         
@@ -157,87 +163,27 @@ class UploadService:
         logger.info(f"Arquivo: {filename}")
         logger.info(f"Total de linhas: {len(df)}")
         logger.debug(f"Colunas: {df.columns.tolist()}")
-        
-        # Identificar upload anterior ANTES de criar novo (para limpar dados relacionados)
-        from src.modules.features.uploads.repository import ContextoAtivoRepository
-        contexto_repo = ContextoAtivoRepository(db)
-        upload_anterior = contexto_repo.find_upload_ativo(ano_letivo_id)
-        
-        # Obter ou criar upload (cria novo e ativa)
+
+        # Obter/criar upload do ano letivo (substitui mantendo 1 upload por ano)
         upload = obter_ou_criar_upload_ativo(db, ano_letivo_id, filename)
         db.flush()
         db.refresh(upload)
-        
-        # Processar escolas
-        upload_repo = UploadRepository(db)
+
         escola_repo = EscolaRepository(db)
-        
-        # Limpar dados relacionados do upload anterior (preservando liberações)
-        if upload_anterior and upload_anterior.id != upload.id:
-            logger.info(f"Limpando dados relacionados do upload anterior ID: {upload_anterior.id}")
-            escolas_anteriores = escola_repo.find_by_upload_id(upload_anterior.id)
-            
-            from src.modules.features.calculos.repository import CalculoRepository
-            from src.modules.features.complemento.repository import ComplementoEscolaRepository
-            
-            calculo_repo = CalculoRepository(db)
-            complemento_escola_repo = ComplementoEscolaRepository(db)
-            
-            calculos_deletados = 0
-            complementos_deletados = 0
-            
-            for escola_antiga in escolas_anteriores:
-                # Deletar cálculos (cascade deleta parcelas automaticamente)
-                calculo_existente = calculo_repo.find_by_escola_id(escola_antiga.id)
-                if calculo_existente:
-                    calculo_repo.delete(calculo_existente)
-                    calculos_deletados += 1
-                
-                # Deletar complementos
-                deleted = complemento_escola_repo.delete_by_escola_id(escola_antiga.id)
-                complementos_deletados += deleted
-            
-            logger.info(f"Dados limpos: {calculos_deletados} cálculos e {complementos_deletados} complementos deletados")
-            logger.info("Liberações de parcelas e projetos preservadas")
-        
-        # Limpar escolas de uploads não ativos (preservando apenas as que têm liberações)
-        logger.info("Iniciando limpeza de escolas de uploads não ativos...")
-        uploads_nao_ativos = upload_repo.find_all_by_ano_letivo(ano_letivo_id)
-        uploads_nao_ativos = [u for u in uploads_nao_ativos if u.id != upload.id]
-        
-        escolas_deletadas_nao_ativas = 0
-        escolas_preservadas_com_liberacoes = 0
-        
-        if uploads_nao_ativos:
-            logger.info(f"Encontrados {len(uploads_nao_ativos)} upload(s) não ativo(s) para limpeza")
-            
-            for upload_nao_ativo in uploads_nao_ativos:
-                escolas_upload_antigo = escola_repo.find_by_upload_id(upload_nao_ativo.id)
-                logger.debug(f"Processando upload não ativo ID {upload_nao_ativo.id}: {len(escolas_upload_antigo)} escola(s)")
-                
-                for escola_antiga in escolas_upload_antigo:
-                    # Verificar se tem liberações
-                    tem_liberacoes = (
-                        len(escola_antiga.liberacoes_parcelas) > 0 or
-                        escola_antiga.liberacoes_projetos is not None
-                    )
-                    
-                    if not tem_liberacoes:
-                        # Deletar escola (cascade deleta cálculos e complementos automaticamente)
-                        escola_repo.delete(escola_antiga)
-                        escolas_deletadas_nao_ativas += 1
-                    else:
-                        escolas_preservadas_com_liberacoes += 1
-                        logger.debug(f"Escola {escola_antiga.id} ({escola_antiga.nome_uex}) preservada - possui liberações")
-            
-            logger.info(f"Limpeza concluída: {escolas_deletadas_nao_ativas} escola(s) deletada(s), {escolas_preservadas_com_liberacoes} preservada(s) (com liberações)")
-        else:
-            logger.info("Nenhum upload não ativo encontrado para limpeza")
-        
-        mapa_escolas_existentes = escola_repo.create_map_by_nome_dre(upload.id)
-        escolas_existentes = list(mapa_escolas_existentes.values())
-        
-        logger.info(f"Upload {'atualizado' if escolas_existentes else 'criado'} com ID: {upload.id}")
+
+        # Mapas de escolas existentes no upload atual:
+        # - Preferir CNPJ normalizado
+        # - Fallback para (nome_uex, dre)
+        escolas_existentes = escola_repo.find_by_upload_id(upload.id)
+        mapa_por_cnpj = {}
+        mapa_por_nome_dre = {}
+        for e in escolas_existentes:
+            cnpj_norm = _normalize_cnpj(e.cnpj)
+            if cnpj_norm:
+                mapa_por_cnpj[cnpj_norm] = e
+            mapa_por_nome_dre[(e.nome_uex, e.dre)] = e
+
+        logger.info(f"Upload do ano letivo {ano_letivo.ano} com ID: {upload.id}")
         logger.info(f"Escolas existentes no upload: {len(escolas_existentes)}")
         
         escolas_processadas = set()
@@ -245,6 +191,12 @@ class UploadService:
         escolas_atualizadas = 0
         escolas_criadas = 0
         escolas_com_erro = []
+
+        # Repositórios para limpar dados recalculáveis (sem tocar liberações)
+        from src.modules.features.calculos.repository import CalculoRepository
+        from src.modules.features.complemento.repository import ComplementoEscolaRepository
+        calculo_repo = CalculoRepository(db)
+        complemento_escola_repo = ComplementoEscolaRepository(db)
         
         with transaction(db):
             for idx, row in df.iterrows():
@@ -258,12 +210,18 @@ class UploadService:
                     nome_escola = str(nome_escola).strip()
                     
                     dre_val = obter_texto(row, "DRE", None)
-                    chave_escola = (nome_escola, dre_val)
+                    cnpj_raw = obter_texto(row, "CNPJ", None)
+                    cnpj_norm = _normalize_cnpj(cnpj_raw)
+                    chave_nome_dre = (nome_escola, dre_val)
                     
                     if (idx + 1) % 50 == 0 or idx == 0:
                         logger.debug(f"[{idx + 1}/{len(df)}] Processando: {nome_escola} (DRE: {dre_val or 'N/A'})")
                     
-                    escola_existente = mapa_escolas_existentes.get(chave_escola)
+                    escola_existente = None
+                    if cnpj_norm:
+                        escola_existente = mapa_por_cnpj.get(cnpj_norm)
+                    if not escola_existente:
+                        escola_existente = mapa_por_nome_dre.get(chave_nome_dre)
 
                     codigo_ept_val = obter_texto(row, "CODIGO DE EPT", "")
                     if not codigo_ept_val:
@@ -275,7 +233,7 @@ class UploadService:
                         escola_repo.update(
                             escola_existente,
                             total_alunos=obter_quantidade(row, "TOTAL"),
-                            cnpj=obter_texto(row, "CNPJ", None),
+                            cnpj=cnpj_raw,
                             fundamental_inicial=obter_quantidade(row, "FUNDAMENTAL INICIAL"),
                             fundamental_final=obter_quantidade(row, "FUNDAMENTAL FINAL"),
                             fundamental_integral=obter_quantidade(row, "FUNDAMENTAL INTEGRAL"),
@@ -302,13 +260,19 @@ class UploadService:
 
                         escolas_atualizadas += 1
                         escolas_processadas.add(escola_existente.id)
+
+                        # Limpar dados recalculáveis (mantém liberações)
+                        calculo_existente = calculo_repo.find_by_escola_id(escola_existente.id)
+                        if calculo_existente:
+                            calculo_repo.delete(calculo_existente)
+                        complemento_escola_repo.delete_by_escola_id(escola_existente.id)
                     else:
                         # Criar nova escola
                         escola_obj = escola_repo.create(
                             upload_id=upload.id,
                             nome_uex=nome_escola,
                             dre=dre_val,
-                            cnpj=obter_texto(row, "CNPJ", None),
+                            cnpj=cnpj_raw,
                             total_alunos=obter_quantidade(row, "TOTAL"),
                             fundamental_inicial=obter_quantidade(row, "FUNDAMENTAL INICIAL"),
                             fundamental_final=obter_quantidade(row, "FUNDAMENTAL FINAL"),
@@ -336,7 +300,9 @@ class UploadService:
                         
                         escolas_criadas += 1
                         escolas_processadas.add(escola_obj.id)
-                        mapa_escolas_existentes[chave_escola] = escola_obj
+                        if cnpj_norm:
+                            mapa_por_cnpj[cnpj_norm] = escola_obj
+                        mapa_por_nome_dre[chave_nome_dre] = escola_obj
                     
                     escolas_salvas += 1
                     
@@ -354,53 +320,127 @@ class UploadService:
                         "erro": error_msg
                     })
                     continue
-            
-            # Remover escolas que não estão mais no arquivo
-            # IMPORTANTE: Deletar apenas se não houver liberações para preservar histórico
-            escolas_para_deletar = [
-                e for e in escolas_existentes 
-                if e.id not in escolas_processadas
-            ]
-            
-            escolas_removidas_count = 0
-            escolas_com_liberacao_nao_deletadas = 0
-            
-            if escolas_para_deletar:
-                for escola_para_deletar in escolas_para_deletar:
-                    # Verificar se tem liberações antes de deletar
-                    tem_liberacoes = (
-                        len(escola_para_deletar.liberacoes_parcelas) > 0 or
-                        escola_para_deletar.liberacoes_projetos is not None
-                    )
-                    
-                    if tem_liberacoes:
-                        # Preservar escola se tiver liberações (apenas limpar dados relacionados)
-                        from src.modules.features.calculos.repository import CalculoRepository
-                        from src.modules.features.complemento.repository import ComplementoEscolaRepository
-                        
-                        calculo_repo_temp = CalculoRepository(db)
-                        complemento_escola_repo_temp = ComplementoEscolaRepository(db)
-                        
-                        # Limpar apenas cálculos e complementos, mantendo escola e liberações
-                        calculo_existente = calculo_repo_temp.find_by_escola_id(escola_para_deletar.id)
-                        if calculo_existente:
-                            calculo_repo_temp.delete(calculo_existente)
-                        
-                        complemento_escola_repo_temp.delete_by_escola_id(escola_para_deletar.id)
-                        
-                        escolas_com_liberacao_nao_deletadas += 1
-                        logger.debug(f"Escola {escola_para_deletar.id} ({escola_para_deletar.nome_uex}) preservada devido a liberações")
-                    else:
-                        # Deletar escola se não tiver liberações
-                        escola_repo.delete(escola_para_deletar)
-                        escolas_removidas_count += 1
-                
-                if escolas_removidas_count > 0:
-                    logger.info(f"Removidas {escolas_removidas_count} escola(s) que não estão mais no arquivo")
-                if escolas_com_liberacao_nao_deletadas > 0:
-                    logger.info(f"Preservadas {escolas_com_liberacao_nao_deletadas} escola(s) com liberações (dados relacionados limpos)")
-            
-            upload_repo.update(upload, total_escolas=escolas_salvas)
+
+            # Deduplicação por CNPJ no mesmo upload:
+            # Como não deletamos escolas ausentes da planilha, podem existir "sobras históricas" com o mesmo CNPJ.
+            # Para manter consistência (1 escola por CNPJ), fazemos merge conservador de liberações e removemos duplicatas.
+
+            # Buscar escolas do upload e agrupar por CNPJ normalizado
+            escolas_upload = escola_repo.find_by_upload_id(upload.id)
+            by_cnpj: Dict[str, List[Any]] = {}
+            for e in escolas_upload:
+                cnpj_norm = _normalize_cnpj(e.cnpj)
+                if not cnpj_norm:
+                    continue
+                by_cnpj.setdefault(cnpj_norm, []).append(e)
+
+            dup_groups = {k: v for k, v in by_cnpj.items() if len(v) > 1}
+            if dup_groups:
+                logger.warning(
+                    "Detectadas %s duplicidade(s) por CNPJ no upload_id=%s. Iniciando merge.",
+                    len(dup_groups),
+                    upload.id,
+                )
+
+            if dup_groups:
+                from src.modules.features.parcelas.models import LiberacoesParcela
+                from src.modules.features.projetos.models import LiberacoesProjeto
+                from src.modules.features.complemento.models import LiberacoesComplemento
+                from src.modules.features.escolas.models import Escola as EscolaModel
+
+                merged_dups = 0
+                for cnpj_norm, escolas in dup_groups.items():
+                    # Escolher canônica: a que tiver liberações; senão, a de menor id
+                    escolas_sorted = sorted(escolas, key=lambda x: x.id)
+                    canon = None
+                    for cand in escolas_sorted:
+                        has_rel = (
+                            (cand.liberacoes_projetos is not None)
+                            or (cand.liberacoes_parcelas and len(cand.liberacoes_parcelas) > 0)
+                            or (cand.liberacoes_complementos and len(cand.liberacoes_complementos) > 0)
+                        )
+                        if has_rel:
+                            canon = cand
+                            break
+                    canon = canon or escolas_sorted[0]
+
+                    for dup in escolas_sorted:
+                        if dup.id == canon.id:
+                            continue
+
+                        # Migrar liberações parcelas
+                        for lp in db.query(LiberacoesParcela).filter(LiberacoesParcela.escola_id == dup.id).all():
+                            existing = (
+                                db.query(LiberacoesParcela)
+                                .filter(
+                                    LiberacoesParcela.escola_id == canon.id,
+                                    LiberacoesParcela.numero_parcela == lp.numero_parcela,
+                                )
+                                .first()
+                            )
+                            if existing:
+                                existing.liberada = bool(existing.liberada or lp.liberada)
+                                if existing.numero_folha is None and lp.numero_folha is not None:
+                                    existing.numero_folha = lp.numero_folha
+                                if existing.data_liberacao is None and lp.data_liberacao is not None:
+                                    existing.data_liberacao = lp.data_liberacao
+                                if getattr(lp, "valor_projetos_aprovados", 0.0) > getattr(existing, "valor_projetos_aprovados", 0.0):
+                                    existing.valor_projetos_aprovados = lp.valor_projetos_aprovados
+                                db.delete(lp)
+                            else:
+                                lp.escola_id = canon.id
+
+                        # Migrar liberação projeto
+                        dp = db.query(LiberacoesProjeto).filter(LiberacoesProjeto.escola_id == dup.id).first()
+                        if dp:
+                            cp = db.query(LiberacoesProjeto).filter(LiberacoesProjeto.escola_id == canon.id).first()
+                            if cp:
+                                cp.liberada = bool(cp.liberada or dp.liberada)
+                                if cp.numero_folha is None and dp.numero_folha is not None:
+                                    cp.numero_folha = dp.numero_folha
+                                if cp.data_liberacao is None and dp.data_liberacao is not None:
+                                    cp.data_liberacao = dp.data_liberacao
+                                if dp.valor_projetos_aprovados > cp.valor_projetos_aprovados:
+                                    cp.valor_projetos_aprovados = dp.valor_projetos_aprovados
+                                db.delete(dp)
+                            else:
+                                dp.escola_id = canon.id
+
+                        # Migrar liberações complemento
+                        for lc in db.query(LiberacoesComplemento).filter(LiberacoesComplemento.escola_id == dup.id).all():
+                            exists_lc = (
+                                db.query(LiberacoesComplemento)
+                                .filter(
+                                    LiberacoesComplemento.escola_id == canon.id,
+                                    LiberacoesComplemento.complemento_upload_id == lc.complemento_upload_id,
+                                )
+                                .first()
+                            )
+                            if exists_lc:
+                                exists_lc.liberada = bool(exists_lc.liberada or lc.liberada)
+                                if exists_lc.numero_folha is None and lc.numero_folha is not None:
+                                    exists_lc.numero_folha = lc.numero_folha
+                                if exists_lc.data_liberacao is None and lc.data_liberacao is not None:
+                                    exists_lc.data_liberacao = lc.data_liberacao
+                                db.delete(lc)
+                            else:
+                                lc.escola_id = canon.id
+
+                        db.flush()
+                        # Bulk delete escola duplicada para evitar nullify de FKs NOT NULL
+                        db.query(EscolaModel).filter(EscolaModel.id == dup.id).delete(synchronize_session=False)
+                        merged_dups += 1
+
+                logger.info(
+                    "Deduplicação por CNPJ concluída (upload_id=%s, merged_dups=%s)",
+                    upload.id,
+                    merged_dups,
+                )
+
+            # Importante (requisito): NÃO deletar escolas ausentes do arquivo no mesmo ano letivo.
+            # Mantemos escolas (e suas liberações) mesmo que não venham na nova planilha.
+            upload_repo = UploadRepository(db)
+            upload_repo.update(upload, total_escolas=escola_repo.count_by_upload_id(upload.id))
         
         if escolas_atualizadas > 0:
             logger.info(f"{escolas_atualizadas} escola(s) atualizada(s) (mantendo IDs)")
@@ -415,8 +455,6 @@ class UploadService:
         logger.info(f"Escolas processadas: {escolas_salvas}")
         logger.info(f"  - Atualizadas: {escolas_atualizadas} (IDs mantidos)")
         logger.info(f"  - Criadas: {escolas_criadas} (novos IDs)")
-        if escolas_removidas_count > 0:
-            logger.info(f"  - Removidas: {escolas_removidas_count}")
         logger.info(f"Total confirmado no banco: {total_no_banco}")
         logger.warning(f"Erros: {len(escolas_com_erro)}" if escolas_com_erro else "Sem erros")
         logger.info("="*60)
@@ -434,6 +472,6 @@ class UploadService:
             "escolas_com_erro_lista": escolas_com_erro,
             "escolas_atualizadas": escolas_atualizadas,
             "escolas_criadas": escolas_criadas,
-            "escolas_removidas": escolas_removidas_count,
+            "escolas_removidas": 0,
         }
 
