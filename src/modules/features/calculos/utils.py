@@ -7,6 +7,8 @@ from src.modules.shared.constants import (
     PESO_FUNDAMENTAL_INTEGRAL,
     PESO_PROFISSIONALIZANTE,
     PESO_PROFISSIONALIZANTE_INTEGRADO,
+    PESO_ESPECIAL_PROFISSIONALIZANTE_PARCIAL,
+    PESO_ESPECIAL_PROFISSIONALIZANTE_INTEGRADO,
     PESO_ALTERNANCIA,
     PESO_MEDIO_INTEGRAL,
     PESO_MEDIO_REGULAR,
@@ -45,6 +47,8 @@ def calcular_profin_gestao(row: pd.Series, incluir_valor_fixo_gestao: bool = Tru
     fund_integral = obter_quantidade(row, "FUNDAMENTAL INTEGRAL")
     profissionalizante = obter_quantidade(row, "PROFISSIONALIZANTE")
     profissionalizante_integrado = obter_quantidade(row, "PROFISSIONALIZANTE INTEGRADO")
+    especial_profissionalizante_parcial = obter_quantidade(row, "ESPECIAL PROFISSIONALIZANTE PARCIAL")
+    especial_profissionalizante_integrado = obter_quantidade(row, "ESPECIAL PROFISSIONALIZANTE INTEGRADO")
     alternancia = obter_quantidade(row, "ALTERNÂNCIA")
     medio_integral = obter_quantidade(row, "ENSINO MÉDIO INTEGRAL")
     medio_regular = obter_quantidade(row, "ENSINO MÉDIO REGULAR")
@@ -60,6 +64,8 @@ def calcular_profin_gestao(row: pd.Series, incluir_valor_fixo_gestao: bool = Tru
         (fund_integral * PESO_FUNDAMENTAL_INTEGRAL) +
         (profissionalizante * PESO_PROFISSIONALIZANTE) +
         (profissionalizante_integrado * PESO_PROFISSIONALIZANTE_INTEGRADO) +
+        ((especial_profissionalizante_parcial * PESO_ESPECIAL_PROFISSIONALIZANTE_PARCIAL) * MULTIPLICADOR_ESPECIAL) +
+        ((especial_profissionalizante_integrado * PESO_ESPECIAL_PROFISSIONALIZANTE_INTEGRADO) * MULTIPLICADOR_ESPECIAL) +
         ((alternancia * PESO_ALTERNANCIA) * MULTIPLICADOR_ALTERNANCIA) +
         (medio_integral * PESO_MEDIO_INTEGRAL) +
         (medio_regular * PESO_MEDIO_REGULAR) +
@@ -127,10 +133,13 @@ def calcular_profin_merenda(row: pd.Series) -> float:
     esp_fund_regular = obter_quantidade(row, "ESPECIAL FUNDAMENTAL REGULAR")
     esp_medio_parcial = obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL")
     alternancia = obter_quantidade(row, "ALTERNÂNCIA")
+    fic_senac = obter_quantidade(row, "FIC SENAC")
+    especial_profissionalizante_parcial = obter_quantidade(row, "ESPECIAL PROFISSIONALIZANTE PARCIAL")
+    especial_profissionalizante_integrado = obter_quantidade(row, "ESPECIAL PROFISSIONALIZANTE INTEGRADO")
 
     valor_total = (
-        ((fund_inicial + fund_final + profissionalizante + medio_regular) * valor_per_capita) + 
-        ((fund_integral + medio_integral + esp_fund_integral + esp_medio_integral + profissionalizante_integrado + esp_fund_regular + esp_medio_parcial) * MULTIPLICADOR_MERENDA_INTEGRAL * valor_per_capita) +
+        ((fund_inicial + fund_final + profissionalizante + medio_regular + fic_senac) * valor_per_capita) + 
+        ((fund_integral + medio_integral + esp_fund_integral + esp_medio_integral + profissionalizante_integrado + esp_fund_regular + esp_medio_parcial + especial_profissionalizante_parcial + especial_profissionalizante_integrado) * MULTIPLICADOR_MERENDA_INTEGRAL * valor_per_capita) +
         (alternancia * (valor_per_capita * MULTIPLICADOR_MERENDA_ALTERNANCIA))
     )
 
@@ -144,6 +153,8 @@ def calcular_profin_sala_recurso(row: pd.Series) -> float:
         quantidade_aluno = obter_quantidade(row, "SALA DE RECURSO")
         return round(quantidade_aluno * VALOR_UNITARIO_SALA_RECURSO + VALOR_FIXO_SALA_RECURSO, 2)
     return 0.00
+
+
 
 #def calcular_profin_climatizacao(row: pd.Series) -> float:
 #    qtd_aparelhos = obter_quantidade(row, "CLIMATIZAÇÃO")

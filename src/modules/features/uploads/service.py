@@ -117,6 +117,9 @@ class UploadService:
                     "codigo_inep": escola.codigo_inep,
                     "saldo_reprogramado_gestao": escola.saldo_reprogramado_gestao,
                     "saldo_reprogramado_merenda": escola.saldo_reprogramado_merenda,
+                    "fic_senac": escola.fic_senac,
+                    "especial_profissionalizante_parcial": escola.especial_profissionalizante_parcial,
+                    "especial_profissionalizante_integrado": escola.especial_profissionalizante_integrado,
                 }
 
                 escolas_planilha.append(EscolaPlanilhaInfo(dados_planilha=dados_escola))
@@ -256,6 +259,9 @@ class UploadService:
                             codigo_inep=obter_texto(row, "INEP"),
                             saldo_reprogramado_gestao=obter_valor_float(row, "SALDO GESTAO"),
                             saldo_reprogramado_merenda=obter_valor_float(row, "SALDO MERENDA"),
+                            fic_senac=obter_quantidade(row, "FIC SENAC"),
+                            especial_profissionalizante_parcial=obter_quantidade(row, "ESPECIAL PROFISSIONALIZANTE PARCIAL"),
+                            especial_profissionalizante_integrado=obter_quantidade(row, "ESPECIAL PROFISSIONALIZANTE INTEGRADO"),
                         )
 
                         escolas_atualizadas += 1
@@ -297,6 +303,9 @@ class UploadService:
                             codigo_inep=obter_texto(row, "INEP"),
                             saldo_reprogramado_gestao=obter_valor_float(row, "SALDO GESTAO"),
                             saldo_reprogramado_merenda=obter_valor_float(row, "SALDO MERENDA"),
+                            fic_senac=obter_quantidade(row, "FIC SENAC"),
+                            especial_profissionalizante_parcial=obter_quantidade(row, "ESPECIAL PROFISSIONALIZANTE PARCIAL"),
+                            especial_profissionalizante_integrado=obter_quantidade(row, "ESPECIAL PROFISSIONALIZANTE INTEGRADO"),
                         )
                         
                         escolas_criadas += 1

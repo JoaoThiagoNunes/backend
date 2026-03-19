@@ -36,6 +36,9 @@ class Escola(Base):
     especial_fund_integral = Column(Integer, default=0)
     especial_medio_parcial = Column(Integer, default=0)
     especial_medio_integral = Column(Integer, default=0)
+    fic_senac = Column(Integer, default=0)
+    especial_profissionalizante_parcial = Column(Integer, default=0)
+    especial_profissionalizante_integrado = Column(Integer, default=0)
     
     # Recursos especiais
     sala_recurso = Column(Integer, default=0)

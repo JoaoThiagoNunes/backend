@@ -20,6 +20,9 @@ class EscolaInfo(BaseModel):
     especial_fund_integral: Optional[int] = None
     especial_medio_parcial: Optional[int] = None
     especial_medio_integral: Optional[int] = None
+    fic_senac: Optional[int] = None
+    especial_profissionalizante_parcial: Optional[int] = None
+    especial_profissionalizante_integrado: Optional[int] = None
     sala_recurso: Optional[int] = None
     climatizacao: Optional[int] = None
     preuni: Optional[int] = None
@@ -43,6 +46,9 @@ class EscolaRead(BaseModel):
     nome_uex: str
     dre: Optional[str] = None
     total_alunos: Optional[int] = None
+    fic_senac: Optional[int] = None
+    especial_profissionalizante_parcial: Optional[int] = None
+    especial_profissionalizante_integrado: Optional[int] = None
     codigo_ept: Optional[str] = None
     codigo_inep: Optional[str] = None
     
