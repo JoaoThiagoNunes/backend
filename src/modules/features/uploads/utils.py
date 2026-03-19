@@ -35,6 +35,7 @@ def obter_ou_criar_upload_ativo(db: Session, ano_letivo_id: int, filename: str) 
                 f"Consolidando no upload_id={upload_atual.id}."
             )
             from src.modules.features.escolas import Escola
+            from src.modules.features.complemento.models import ComplementoUpload
 
             for extra in extras:
                 # Consolidação segura:
@@ -175,6 +176,36 @@ def obter_ou_criar_upload_ativo(db: Session, ano_letivo_id: int, filename: str) 
                     merged,
                     merge_errors,
                 )
+
+                # Preservar vínculos de complemento antes de remover o upload extra:
+                # `ComplementoUpload.upload_base_id` e `upload_complemento_id` possuem
+                # FK com ondelete=CASCADE; sem remap, o delete do upload extra apagaria
+                # o cabeçalho de complemento e "sumiria" no frontend.
+                remap_base = (
+                    db.query(ComplementoUpload)
+                    .filter(ComplementoUpload.upload_base_id == extra.id)
+                    .update(
+                        {ComplementoUpload.upload_base_id: upload_atual.id},
+                        synchronize_session=False,
+                    )
+                )
+                remap_compl = (
+                    db.query(ComplementoUpload)
+                    .filter(ComplementoUpload.upload_complemento_id == extra.id)
+                    .update(
+                        {ComplementoUpload.upload_complemento_id: upload_atual.id},
+                        synchronize_session=False,
+                    )
+                )
+                if remap_base or remap_compl:
+                    logger.info(
+                        "Remapeadas referências de complemento antes do delete do upload extra "
+                        "(extra_upload_id=%s -> upload_id=%s, remap_base=%s, remap_complemento=%s)",
+                        extra.id,
+                        upload_atual.id,
+                        remap_base,
+                        remap_compl,
+                    )
 
                 # Remover upload extra após mover/mesclar escolas
                 upload_repo.delete(extra)

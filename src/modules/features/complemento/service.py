@@ -92,6 +92,7 @@ class ComplementoService:
         # 5. Processar comparações
         complemento_repo = ComplementoUploadRepository(db)
         complemento_escola_repo = ComplementoEscolaRepository(db)
+        liberacao_repo = LiberacaoComplementoRepository(db)
         
         resultados = []
         escolas_com_aumento = 0
@@ -101,20 +102,11 @@ class ComplementoService:
         valor_total_complemento = 0.0
         
         with transaction(db):
-            # Deletar TODOS os ComplementoUpload existentes para este ano_letivo
-            # Isso garante substituição completa - a cada nova inserção, remove todos os anteriores do ano
-            deleted_count = complemento_repo.delete_all_by_ano_letivo(ano_id)
+            # Buscar complementos atuais do ano (pode haver legado); manteremos apenas o novo no final
+            complementos_antigos = complemento_repo.find_by_ano_letivo(ano_id)
+            antigos_ids = [c.id for c in complementos_antigos]
             
-            if deleted_count > 0:
-                logger.info(
-                    f"{deleted_count} ComplementoUpload(s) existente(s) deletado(s) "
-                    f"para ano_letivo_id={ano_id}. "
-                    f"Substituindo por novo processamento."
-                )
-                # O cascade definido no modelo já deleta automaticamente os ComplementoEscola relacionados
-                db.flush()  # Garantir que a deleção foi commitada antes de criar novo
-            
-            # Criar registro de ComplementoUpload
+            # Criar registro de ComplementoUpload para este novo processamento
             complemento_upload = complemento_repo.create(
                 ano_letivo_id=ano_id,
                 upload_base_id=upload_base.id,
@@ -287,6 +279,65 @@ class ComplementoService:
                 escolas_com_diminuicao=escolas_com_diminuicao,
                 escolas_com_erro=escolas_com_erro
             )
+
+            # ============
+            # MIGRAR LIBERAÇÕES DO COMPLEMENTO ANTIGO PARA O NOVO
+            # ============
+            if antigos_ids:
+                escolas_novas_ids = {
+                    ce.escola_id for ce in complemento_escola_repo.find_by_complemento_upload(complemento_upload.id)
+                }
+                if escolas_novas_ids:
+                    antigas_liberacoes = (
+                        db.query(LiberacoesComplemento)
+                        .filter(LiberacoesComplemento.complemento_upload_id.in_(antigos_ids))
+                        .all()
+                    )
+                    if antigas_liberacoes:
+                        logger.info(
+                            "Migrando %s liberações de complemento dos complemento_upload_ids=%s para %s",
+                            len(antigas_liberacoes),
+                            antigos_ids,
+                            complemento_upload.id,
+                        )
+                        # mapa de liberações já existentes no novo complemento (por escola)
+                        mapa_existentes_novo = liberacao_repo.create_map_by_escola_id(
+                            list(escolas_novas_ids),
+                            complemento_upload_id=complemento_upload.id,
+                        )
+                        for lib_antiga in antigas_liberacoes:
+                            escola_id = lib_antiga.escola_id
+                            if escola_id not in escolas_novas_ids:
+                                # escola não está no novo complemento, descartar liberação
+                                db.delete(lib_antiga)
+                                continue
+
+                            lib_nova = mapa_existentes_novo.get(escola_id)
+                            if lib_nova:
+                                lib_nova.liberada = bool(lib_nova.liberada or lib_antiga.liberada)
+                                if lib_nova.numero_folha is None and lib_antiga.numero_folha is not None:
+                                    lib_nova.numero_folha = lib_antiga.numero_folha
+                                if lib_nova.data_liberacao is None and lib_antiga.data_liberacao is not None:
+                                    lib_nova.data_liberacao = lib_antiga.data_liberacao
+                                db.delete(lib_antiga)
+                            else:
+                                lib_antiga.complemento_upload_id = complemento_upload.id
+                                mapa_existentes_novo[escola_id] = lib_antiga
+
+                        # Garantir que as alterações em LiberacoesComplemento (troca de complemento_upload_id)
+                        # sejam persistidas no banco antes de deletarmos os ComplementoUpload antigos
+                        # (evita que o ON DELETE CASCADE apague as linhas migradas).
+                        db.flush()
+
+                # ============
+                # REMOVER COMPLEMENTOS ANTIGOS (mantendo apenas o novo por ano)
+                # ============
+                for cid in antigos_ids:
+                    if cid == complemento_upload.id:
+                        continue
+                    antigo = complemento_repo.find_by_id(cid)
+                    if antigo:
+                        db.delete(antigo)
         
         logger.info("="*60)
         logger.info("COMPLEMENTO PROCESSADO")
@@ -403,22 +454,20 @@ class ComplementoService:
         complemento_upload_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Obtém resumo de complementos agrupados por folhas."""
-        from src.modules.features.uploads.repository import ContextoAtivoRepository
-        
         _, ano_id = obter_ano_letivo(db, ano_letivo_id)
-        
+
         # Se não informado complemento_upload_id, buscar o mais recente
         if complemento_upload_id is None:
             complemento_repo = ComplementoUploadRepository(db)
-            complemento_upload_recente = complemento_repo.find_mais_recente_by_ano_letivo(ano_id)
+            # Preferir o mais recente que tem ComplementoEscola; se não existir, cair no mais recente geral.
+            complemento_upload_recente = (
+                complemento_repo.find_mais_recente_com_complemento_escola_por_ano_letivo(ano_id)
+                or complemento_repo.find_mais_recente_by_ano_letivo(ano_id)
+            )
             if complemento_upload_recente:
                 complemento_upload_id = complemento_upload_recente.id
-        
-        # Buscar upload ativo para filtrar escolas
-        contexto_repo = ContextoAtivoRepository(db)
-        upload_ativo = contexto_repo.find_upload_ativo(ano_id)
-        
-        if not upload_ativo:
+
+        if not complemento_upload_id:
             return {
                 "success": True,
                 "total_folhas": 0,
@@ -426,78 +475,56 @@ class ComplementoService:
                 "valor_total_reais": 0.0,
                 "folhas": []
             }
-        
-        # Buscar escolas do upload ativo que têm complemento
-        escola_repo = EscolaRepository(db)
-        escolas = escola_repo.find_by_upload_id(upload_ativo.id)
-        
-        # Buscar complementos das escolas
+
         complemento_escola_repo = ComplementoEscolaRepository(db)
         liberacao_repo = LiberacaoComplementoRepository(db)
-        
-        # Filtrar por complemento_upload_id se fornecido
-        if complemento_upload_id:
-            complementos_escola = complemento_escola_repo.find_by_complemento_upload(complemento_upload_id)
-            escola_ids_com_complemento = {ce.escola_id for ce in complementos_escola}
-            escolas = [e for e in escolas if e.id in escola_ids_com_complemento]
-        
+
+        # Importante: não depender do "upload base ativo".
+        # Montamos o resumo diretamente a partir dos dados do `complemento_upload_id`.
+        complementos_escola = complemento_escola_repo.find_by_complemento_upload(complemento_upload_id)
+
         # Buscar liberações
         liberacoes = liberacao_repo.find_liberadas(complemento_upload_id=complemento_upload_id)
-        mapa_liberacoes: Dict[int, LiberacoesComplemento] = {
-            lib.escola_id: lib for lib in liberacoes
-        }
-        
+        mapa_liberacoes: Dict[int, LiberacoesComplemento] = {lib.escola_id: lib for lib in liberacoes}
+
         # Agrupar por folha
         agrupado: Dict[Optional[int], List[Dict[str, Any]]] = {}
         escolas_por_folha: Dict[Optional[int], set] = {}
-        
-        for escola in escolas:
-            # Buscar complemento da escola
-            complementos = complemento_escola_repo.find_by_escola(escola.id)
-            if complemento_upload_id:
-                complementos = [c for c in complementos if c.complemento_upload_id == complemento_upload_id]
-            
-            if not complementos:
-                continue
-            
-            # Usar o complemento mais recente
-            complemento = complementos[0]
-            
-            # Verificar se escola tem liberação
-            liberacao = mapa_liberacoes.get(escola.id)
-            
+
+        for complemento in complementos_escola:
+            escola_id = complemento.escola_id
+
+            liberacao = mapa_liberacoes.get(escola_id)
             if liberacao:
                 folha = liberacao.numero_folha
                 liberada = liberacao.liberada
             else:
                 folha = None
                 liberada = False
-            
+
             if folha not in agrupado:
                 agrupado[folha] = []
                 escolas_por_folha[folha] = set()
-            
-            if escola.id in escolas_por_folha[folha]:
+
+            if escola_id in escolas_por_folha[folha]:
                 continue
-            
-            escolas_por_folha[folha].add(escola.id)
-            
-            # Buscar parcelas separadas por ensino se existirem
+            escolas_por_folha[folha].add(escola_id)
+
             parcelas_info = ComplementoService.obter_parcelas_complemento_formatadas(db, complemento)
-            
+
             info = ComplementoEscolaPrevisaoInfo(
-                escola_id=escola.id,
-                nome_uex=escola.nome_uex,
-                dre=escola.dre,
+                escola_id=escola_id,
+                nome_uex=complemento.escola.nome_uex,
+                dre=complemento.escola.dre,
                 liberada=liberada,
                 numero_folha=folha,
                 valor_complemento_total=complemento.valor_complemento_total or 0.0,
                 status=complemento.status.value,
                 parcelas_por_cota=parcelas_info["parcelas_por_cota"],
                 porcentagem_fundamental=parcelas_info["porcentagem_fundamental"],
-                porcentagem_medio=parcelas_info["porcentagem_medio"]
+                porcentagem_medio=parcelas_info["porcentagem_medio"],
             )
-            
+
             agrupado[folha].append(info.dict())
         
         # Criar lista de folhas

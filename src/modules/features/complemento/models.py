@@ -34,10 +34,16 @@ class ComplementoUpload(Base):
     ano_letivo = relationship("AnoLetivo", back_populates="complemento_uploads")
     upload_base = relationship("Upload", foreign_keys=[upload_base_id])
     upload_complemento = relationship("Upload", foreign_keys=[upload_complemento_id])
-    complementos_escola = relationship("ComplementoEscola", back_populates="complemento_upload", 
-                                       cascade="all, delete-orphan")
-    liberacoes_complemento = relationship("LiberacoesComplemento", back_populates="complemento_upload",
-                                         cascade="all, delete-orphan")
+    complementos_escola = relationship(
+        "ComplementoEscola",
+        back_populates="complemento_upload",
+        cascade="all, delete-orphan",
+    )
+    # Não usar delete-orphan/cascade destrutivo em liberações para preservar histórico
+    liberacoes_complemento = relationship(
+        "LiberacoesComplemento",
+        back_populates="complemento_upload",
+    )
     
     def __repr__(self):
         return f"<ComplementoUpload(id={self.id}, ano={self.ano_letivo_id}, filename='{self.filename}')>"

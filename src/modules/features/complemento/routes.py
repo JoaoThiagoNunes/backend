@@ -23,8 +23,6 @@ from src.modules.schemas.complemento import (
 )
 from .repository import LiberacaoComplementoRepository
 from .models import ComplementoEscola
-from .models import ComplementoEscola
-from .models import ComplementoEscola
 
 
 complemento_router = APIRouter()
@@ -113,7 +111,11 @@ def listar_liberacoes_complemento(
         from src.modules.features.anos import obter_ano_letivo
         _, ano_id = obter_ano_letivo(db, ano_letivo_id)
         complemento_repo = ComplementoUploadRepository(db)
-        complemento_upload_recente = complemento_repo.find_mais_recente_by_ano_letivo(ano_id)
+        # Preferir o mais recente que tem liberações; se não houver, cair no mais recente geral.
+        complemento_upload_recente = (
+            complemento_repo.find_mais_recente_com_liberacoes_por_ano_letivo(ano_id)
+            or complemento_repo.find_mais_recente_by_ano_letivo(ano_id)
+        )
         if complemento_upload_recente:
             complemento_upload_id = complemento_upload_recente.id
     
@@ -212,25 +214,6 @@ def obter_complementos_escola(
     
     complemento_escola_repo = ComplementoEscolaRepository(db)
     complementos = complemento_escola_repo.find_by_escola(escola_id)
-    
-    # Log de debug para investigar array vazio
-    logger.info(f"GET /complemento/escola/{escola_id}: Encontrados {len(complementos)} complemento(s)")
-    if len(complementos) == 0:
-        # Verificar se há complementos no banco para qualquer escola
-        total_complementos = db.query(ComplementoEscola).count()
-        logger.warning(f"Nenhum complemento encontrado para escola_id={escola_id}. Total de complementos no banco: {total_complementos}")
-        # Verificar se há complementos para outras escolas próximas
-        complementos_proximos = db.query(ComplementoEscola).filter(
-            ComplementoEscola.escola_id.between(escola_id - 10, escola_id + 10)
-        ).limit(5).all()
-        if complementos_proximos:
-            escola_ids_proximos = [c.escola_id for c in complementos_proximos]
-            logger.info(f"Encontrados complementos para escolas próximas: {escola_ids_proximos}")
-    else:
-        # Logar detalhes dos complementos encontrados para debug
-        for c in complementos:
-            logger.debug(f"Complemento encontrado: id={c.id}, escola_id={c.escola_id}, upload_id={c.complemento_upload_id}, "
-                        f"valor_total={c.valor_complemento_total}, status={c.status.value}")
     
     complementos_info = []
     for c in complementos:

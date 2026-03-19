@@ -261,11 +261,12 @@ class UploadService:
                         escolas_atualizadas += 1
                         escolas_processadas.add(escola_existente.id)
 
-                        # Limpar dados recalculáveis (mantém liberações)
+                        # Limpar dados recalculáveis do fluxo base (mantém liberações).
+                        # IMPORTANTE: não tocar dados de complemento aqui — complemento só muda
+                        # quando o usuário envia explicitamente um upload de complemento.
                         calculo_existente = calculo_repo.find_by_escola_id(escola_existente.id)
                         if calculo_existente:
                             calculo_repo.delete(calculo_existente)
-                        complemento_escola_repo.delete_by_escola_id(escola_existente.id)
                     else:
                         # Criar nova escola
                         escola_obj = escola_repo.create(

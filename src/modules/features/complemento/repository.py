@@ -67,6 +67,40 @@ class ComplementoUploadRepository(BaseRepository[ComplementoUpload]):
             ComplementoUpload.ano_letivo_id == ano_letivo_id
         ).order_by(ComplementoUpload.upload_date.desc()).first()
 
+    def find_mais_recente_com_liberacoes_por_ano_letivo(
+        self,
+        ano_letivo_id: int
+    ) -> Optional[ComplementoUpload]:
+        """Busca o complemento mais recente que possui ao menos 1 liberação cadastrada."""
+        return (
+            self.db.query(ComplementoUpload)
+            .join(
+                LiberacoesComplemento,
+                LiberacoesComplemento.complemento_upload_id == ComplementoUpload.id,
+            )
+            .filter(ComplementoUpload.ano_letivo_id == ano_letivo_id)
+            .order_by(ComplementoUpload.upload_date.desc())
+            .distinct()
+            .first()
+        )
+
+    def find_mais_recente_com_complemento_escola_por_ano_letivo(
+        self,
+        ano_letivo_id: int
+    ) -> Optional[ComplementoUpload]:
+        """Busca o complemento mais recente que possui ao menos 1 ComplementoEscola cadastrada."""
+        return (
+            self.db.query(ComplementoUpload)
+            .join(
+                ComplementoEscola,
+                ComplementoEscola.complemento_upload_id == ComplementoUpload.id,
+            )
+            .filter(ComplementoUpload.ano_letivo_id == ano_letivo_id)
+            .order_by(ComplementoUpload.upload_date.desc())
+            .distinct()
+            .first()
+        )
+
 
 class ComplementoEscolaRepository(BaseRepository[ComplementoEscola]):
     """
