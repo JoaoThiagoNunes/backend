@@ -163,6 +163,8 @@ class ComplementoService:
                         'FUNDAMENTAL INTEGRAL': obter_quantidade(row, "FUNDAMENTAL INTEGRAL"),
                         'PROFISSIONALIZANTE': obter_quantidade(row, "PROFISSIONALIZANTE"),
                         'PROFISSIONALIZANTE INTEGRADO': obter_quantidade(row, "PROFISSIONALIZANTE INTEGRADO"),
+                        'ESPECIAL PROFISSIONALIZANTE PARCIAL': obter_quantidade(row, "ESPECIAL PROFISSIONALIZANTE PARCIAL"),
+                        'ESPECIAL PROFISSIONALIZANTE INTEGRADO': obter_quantidade(row, "ESPECIAL PROFISSIONALIZANTE INTEGRADO"),
                         'ALTERNÂNCIA': obter_quantidade(row, "ALTERNÂNCIA"),
                         'ENSINO MÉDIO INTEGRAL': obter_quantidade(row, "ENSINO MÉDIO INTEGRAL"),
                         'ENSINO MÉDIO REGULAR': obter_quantidade(row, "ENSINO MÉDIO REGULAR"),
@@ -170,6 +172,7 @@ class ComplementoService:
                         'ESPECIAL FUNDAMENTAL INTEGRAL': obter_quantidade(row, "ESPECIAL FUNDAMENTAL INTEGRAL"),
                         'ESPECIAL MÉDIO PARCIAL': obter_quantidade(row, "ESPECIAL MÉDIO PARCIAL"),
                         'ESPECIAL MÉDIO INTEGRAL': obter_quantidade(row, "ESPECIAL MÉDIO INTEGRAL"),
+                        'FIC SENAC': obter_quantidade(row, "FIC SENAC"),
                         'SALA DE RECURSO': obter_quantidade(row, "SALA DE RECURSO"),
                         'PREUNI': obter_quantidade(row, "PREUNI"),
                     }

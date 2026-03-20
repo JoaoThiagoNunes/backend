@@ -8,6 +8,8 @@ from src.modules.shared.constants import (
     PESO_FUNDAMENTAL_INTEGRAL,
     PESO_PROFISSIONALIZANTE,
     PESO_PROFISSIONALIZANTE_INTEGRADO,
+    PESO_ESPECIAL_PROFISSIONALIZANTE_PARCIAL,
+    PESO_ESPECIAL_PROFISSIONALIZANTE_INTEGRADO,
     PESO_ALTERNANCIA,
     PESO_MEDIO_INTEGRAL,
     PESO_MEDIO_REGULAR,
@@ -37,6 +39,8 @@ def comparar_quantidades(escola_base: Escola, dados_complemento: Dict[str, Any])
         'fundamental_integral': escola_base.fundamental_integral or 0,
         'profissionalizante': escola_base.profissionalizante or 0,
         'profissionalizante_integrado': escola_base.profissionalizante_integrado or 0,
+        'especial_profissionalizante_parcial': escola_base.especial_profissionalizante_parcial or 0,
+        'especial_profissionalizante_integrado': escola_base.especial_profissionalizante_integrado or 0,
         'alternancia': escola_base.alternancia or 0,
         'ensino_medio_integral': escola_base.ensino_medio_integral or 0,
         'ensino_medio_regular': escola_base.ensino_medio_regular or 0,
@@ -44,6 +48,7 @@ def comparar_quantidades(escola_base: Escola, dados_complemento: Dict[str, Any])
         'especial_fund_integral': escola_base.especial_fund_integral or 0,
         'especial_medio_parcial': escola_base.especial_medio_parcial or 0,
         'especial_medio_integral': escola_base.especial_medio_integral or 0,
+        'fic_senac': escola_base.fic_senac or 0,
         'sala_recurso': escola_base.sala_recurso or 0,
         'preuni': escola_base.preuni or 0,
     }
@@ -56,6 +61,8 @@ def comparar_quantidades(escola_base: Escola, dados_complemento: Dict[str, Any])
         'fundamental_integral': dados_complemento.get('FUNDAMENTAL INTEGRAL', 0),
         'profissionalizante': dados_complemento.get('PROFISSIONALIZANTE', 0),
         'profissionalizante_integrado': dados_complemento.get('PROFISSIONALIZANTE INTEGRADO', 0),
+        'especial_profissionalizante_parcial': dados_complemento.get('ESPECIAL PROFISSIONALIZANTE PARCIAL', 0),
+        'especial_profissionalizante_integrado': dados_complemento.get('ESPECIAL PROFISSIONALIZANTE INTEGRADO', 0),
         'alternancia': dados_complemento.get('ALTERNÂNCIA', 0),
         'ensino_medio_integral': dados_complemento.get('ENSINO MÉDIO INTEGRAL', 0),
         'ensino_medio_regular': dados_complemento.get('ENSINO MÉDIO REGULAR', 0),
@@ -63,6 +70,7 @@ def comparar_quantidades(escola_base: Escola, dados_complemento: Dict[str, Any])
         'especial_fund_integral': dados_complemento.get('ESPECIAL FUNDAMENTAL INTEGRAL', 0),
         'especial_medio_parcial': dados_complemento.get('ESPECIAL MÉDIO PARCIAL', 0),
         'especial_medio_integral': dados_complemento.get('ESPECIAL MÉDIO INTEGRAL', 0),
+        'fic_senac': dados_complemento.get('FIC SENAC', 0),
         'sala_recurso': dados_complemento.get('SALA DE RECURSO', 0),
         'preuni': dados_complemento.get('PREUNI', 0),
     }
@@ -118,6 +126,8 @@ def calcular_complemento_gestao(diferencas: Dict[str, int]) -> float:
     fund_integral = diferencas.get('fundamental_integral', 0)
     profissionalizante = diferencas.get('profissionalizante', 0)
     profissionalizante_integrado = diferencas.get('profissionalizante_integrado', 0)
+    especial_profissionalizante_parcial = diferencas.get('especial_profissionalizante_parcial', 0)
+    especial_profissionalizante_integrado = diferencas.get('especial_profissionalizante_integrado', 0)
     alternancia = diferencas.get('alternancia', 0)
     ensino_medio_integral = diferencas.get('ensino_medio_integral', 0)
     ensino_medio_regular = diferencas.get('ensino_medio_regular', 0)
@@ -133,6 +143,8 @@ def calcular_complemento_gestao(diferencas: Dict[str, int]) -> float:
         (fund_integral * PESO_FUNDAMENTAL_INTEGRAL) * MULTIPLICADOR_GESTAO +
         (profissionalizante * PESO_PROFISSIONALIZANTE) * MULTIPLICADOR_GESTAO +
         (profissionalizante_integrado * PESO_PROFISSIONALIZANTE_INTEGRADO) * MULTIPLICADOR_GESTAO +
+        ((especial_profissionalizante_parcial * PESO_ESPECIAL_PROFISSIONALIZANTE_PARCIAL) * MULTIPLICADOR_ESPECIAL) * MULTIPLICADOR_GESTAO +
+        ((especial_profissionalizante_integrado * PESO_ESPECIAL_PROFISSIONALIZANTE_INTEGRADO) * MULTIPLICADOR_ESPECIAL) * MULTIPLICADOR_GESTAO +
         ((alternancia * PESO_ALTERNANCIA) * MULTIPLICADOR_ALTERNANCIA) * MULTIPLICADOR_GESTAO +
         (ensino_medio_integral * PESO_MEDIO_INTEGRAL) * MULTIPLICADOR_GESTAO +
         (ensino_medio_regular * PESO_MEDIO_REGULAR) * MULTIPLICADOR_GESTAO +
@@ -158,6 +170,9 @@ def calcular_complemento_merenda(diferencas: Dict[str, int]) -> float:
     profissionalizante_integrado = diferencas.get('profissionalizante_integrado', 0)
     especial_fund_regular = diferencas.get('especial_fund_regular', 0)
     especial_medio_parcial = diferencas.get('especial_medio_parcial', 0)
+    fic_senac = diferencas.get('fic_senac', 0)
+    especial_profissionalizante_parcial = diferencas.get('especial_profissionalizante_parcial', 0)
+    especial_profissionalizante_integrado = diferencas.get('especial_profissionalizante_integrado', 0)
     alternancia = diferencas.get('alternancia', 0)
     
     # Calcular cada modalidade individualmente seguindo a fórmula exata do código de teste
@@ -166,6 +181,7 @@ def calcular_complemento_merenda(diferencas: Dict[str, int]) -> float:
         fund_final * VALOR_PER_CAPITA_MERENDA +
         profissionalizante * VALOR_PER_CAPITA_MERENDA +
         ensino_medio_regular * VALOR_PER_CAPITA_MERENDA +
+        fic_senac * VALOR_PER_CAPITA_MERENDA +
         (fund_integral * MULTIPLICADOR_MERENDA_INTEGRAL) * VALOR_PER_CAPITA_MERENDA +
         (ensino_medio_integral * MULTIPLICADOR_MERENDA_INTEGRAL) * VALOR_PER_CAPITA_MERENDA +
         (especial_fund_integral * MULTIPLICADOR_MERENDA_INTEGRAL) * VALOR_PER_CAPITA_MERENDA +
@@ -173,6 +189,8 @@ def calcular_complemento_merenda(diferencas: Dict[str, int]) -> float:
         (profissionalizante_integrado * MULTIPLICADOR_MERENDA_INTEGRAL) * VALOR_PER_CAPITA_MERENDA +
         (especial_fund_regular * MULTIPLICADOR_MERENDA_INTEGRAL) * VALOR_PER_CAPITA_MERENDA +
         (especial_medio_parcial * MULTIPLICADOR_MERENDA_INTEGRAL) * VALOR_PER_CAPITA_MERENDA +
+        (especial_profissionalizante_parcial * MULTIPLICADOR_MERENDA_INTEGRAL) * VALOR_PER_CAPITA_MERENDA +
+        (especial_profissionalizante_integrado * MULTIPLICADOR_MERENDA_INTEGRAL) * VALOR_PER_CAPITA_MERENDA +
         alternancia * (VALOR_PER_CAPITA_MERENDA * MULTIPLICADOR_MERENDA_ALTERNANCIA)
     )
     
@@ -193,6 +211,8 @@ def calcular_porcentagens_ensino_complemento(diferencas: Dict[str, int]) -> Tupl
     valor_medio = (
         (max(0, diferencas.get('profissionalizante', 0)) * PESO_PROFISSIONALIZANTE) +
         (max(0, diferencas.get('profissionalizante_integrado', 0)) * PESO_PROFISSIONALIZANTE_INTEGRADO) +
+        (max(0, diferencas.get('especial_profissionalizante_parcial', 0)) * PESO_ESPECIAL_PROFISSIONALIZANTE_PARCIAL) +
+        (max(0, diferencas.get('especial_profissionalizante_integrado', 0)) * PESO_ESPECIAL_PROFISSIONALIZANTE_INTEGRADO) +
         (max(0, diferencas.get('alternancia', 0)) * PESO_ALTERNANCIA) +
         (max(0, diferencas.get('ensino_medio_integral', 0)) * PESO_MEDIO_INTEGRAL) +
         (max(0, diferencas.get('ensino_medio_regular', 0)) * PESO_MEDIO_REGULAR) +
@@ -225,6 +245,8 @@ def calcular_complemento_valores(diferencas: Dict[str, int]) -> Dict[str, float]
         diferencas.get('fundamental_integral', 0),
         diferencas.get('profissionalizante', 0),
         diferencas.get('profissionalizante_integrado', 0),
+        diferencas.get('especial_profissionalizante_parcial', 0),
+        diferencas.get('especial_profissionalizante_integrado', 0),
         diferencas.get('alternancia', 0),
         diferencas.get('ensino_medio_integral', 0),
         diferencas.get('ensino_medio_regular', 0),
@@ -232,6 +254,7 @@ def calcular_complemento_valores(diferencas: Dict[str, int]) -> Dict[str, float]
         diferencas.get('especial_fund_integral', 0),
         diferencas.get('especial_medio_parcial', 0),
         diferencas.get('especial_medio_integral', 0),
+        diferencas.get('fic_senac', 0),
     ])
     
     # Calcular kit e uniforme usando total_alunos_diferenca (conforme código de teste)
@@ -336,6 +359,8 @@ def criar_row_diferenca(diferencas: Dict[str, int]) -> pd.Series:
         'FUNDAMENTAL INTEGRAL': max(0, diferencas.get('fundamental_integral', 0)),
         'PROFISSIONALIZANTE': max(0, diferencas.get('profissionalizante', 0)),
         'PROFISSIONALIZANTE INTEGRADO': max(0, diferencas.get('profissionalizante_integrado', 0)),
+        'ESPECIAL PROFISSIONALIZANTE PARCIAL': max(0, diferencas.get('especial_profissionalizante_parcial', 0)),
+        'ESPECIAL PROFISSIONALIZANTE INTEGRADO': max(0, diferencas.get('especial_profissionalizante_integrado', 0)),
         'ALTERNÂNCIA': max(0, diferencas.get('alternancia', 0)),
         'ENSINO MÉDIO INTEGRAL': max(0, diferencas.get('ensino_medio_integral', 0)),
         'ENSINO MÉDIO REGULAR': max(0, diferencas.get('ensino_medio_regular', 0)),
@@ -343,6 +368,7 @@ def criar_row_diferenca(diferencas: Dict[str, int]) -> pd.Series:
         'ESPECIAL FUNDAMENTAL INTEGRAL': max(0, diferencas.get('especial_fund_integral', 0)),
         'ESPECIAL MÉDIO PARCIAL': max(0, diferencas.get('especial_medio_parcial', 0)),
         'ESPECIAL MÉDIO INTEGRAL': max(0, diferencas.get('especial_medio_integral', 0)),
+        'FIC SENAC': max(0, diferencas.get('fic_senac', 0)),
         'SALA DE RECURSO': max(0, diferencas.get('sala_recurso', 0)),
         'PREUNI': max(0, diferencas.get('preuni', 0)),
         'PROJETOS': 0,
